@@ -12,4 +12,6 @@ next-env.d.ts
 .exe
 .dll
 .env
-/src
+doc
+docker-compnose.yml
+docker-compose.yml
