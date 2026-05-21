@@ -48,19 +48,19 @@ export default async function ApplicationPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // Transform applications for client
+  // Transform applications for client with proper type conversion
   const transformedApplications = applications.map((app) => ({
     id: app.id,
     applicationNumber: app.applicationNumber,
     status: app.status,
     completionScore: app.completionScore,
     paymentStatus: app.paymentStatus,
-    paymentAmount: app.paymentAmount,
-    paymentDate: app.paymentDate,
-    submittedAt: app.submittedAt,
-    approvedAt: app.approvedAt,
-    reviewedAt: app.reviewedAt,
-    rejectionReason: app.rejectionReason,
+    paymentAmount: app.paymentAmount ? Number(app.paymentAmount) : undefined,
+    paymentDate: app.paymentDate || undefined,
+    submittedAt: app.submittedAt || undefined,
+    approvedAt: app.approvedAt || undefined,
+    reviewedAt: app.reviewedAt || undefined,
+    rejectionReason: app.rejectionReason || undefined,
     service: {
       id: app.service.id,
       name: app.service.name,
@@ -72,27 +72,27 @@ export default async function ApplicationPage() {
           certificateNumber: app.certificate.certificateNumber,
           issuedAt: app.certificate.issuedAt,
         }
-      : null,
+      : undefined,
     requirements: app.applicationRequirements.map((req) => ({
       id: req.id,
       requirementId: req.requirementId,
       name: req.requirement.name,
       type: req.requirement.type,
       isMet: req.isMet,
-      uploadUrl: req.upload?.fileUrl,
+      uploadUrl: req.upload?.documentUrl,
       uploadStatus: req.upload?.status,
-      verifiedAt: req.verifiedAt,
-      rejectionReason: req.rejectionReason,
+      verifiedAt: req.verifiedAt || undefined,
+      rejectionReason: req.rejectionReason || undefined,
     })),
     paymentTransaction: app.paymentTransaction
       ? {
           id: app.paymentTransaction.id,
           transactionRef: app.paymentTransaction.transactionRef,
-          amount: app.paymentTransaction.amount,
+          amount: app.paymentTransaction.amount ? Number(app.paymentTransaction.amount) : 0,
           status: app.paymentTransaction.status,
-          paidAt: app.paymentTransaction.paidAt,
+          paidAt: app.paymentTransaction.paidAt || undefined,
         }
-      : null,
+      : undefined, // Changed from null to undefined
   }));
 
   // Calculate statistics

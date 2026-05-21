@@ -88,12 +88,20 @@ export async function GET(request: NextRequest) {
 }
 
 // PATCH - Update artisan status or details
+// PATCH - Update artisan status or details
 export async function PATCH(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const body = await request.json();
-    const { verificationStatus, permitStatus, approvalStatus, onDuty } = body;
+    
+    // Add type definition for the body
+    const { verificationStatus, permitStatus, approvalStatus, onDuty } = body as {
+      verificationStatus?: string;
+      permitStatus?: string;
+      approvalStatus?: string;
+      onDuty?: boolean;
+    };
 
     if (!id) {
       return NextResponse.json(
@@ -102,14 +110,24 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Build update data dynamically (only include fields that are provided)
+    const updateData: any = {};
+    if (verificationStatus !== undefined) updateData.verificationStatus = verificationStatus;
+    if (permitStatus !== undefined) updateData.permitStatus = permitStatus;
+    if (approvalStatus !== undefined) updateData.approvalStatus = approvalStatus;
+    if (onDuty !== undefined) updateData.onDuty = onDuty;
+
+    // Only update if there's data to update
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 }
+      );
+    }
+
     const artisan = await prisma.artisanProfile.update({
       where: { id: id },
-      data: {
-        verificationStatus: verificationStatus || undefined,
-        permitStatus: permitStatus || undefined,
-        approvalStatus: approvalStatus || undefined,
-        onDuty: onDuty !== undefined ? onDuty : undefined,
-      },
+      data: updateData,
       include: {
         user: {
           select: {

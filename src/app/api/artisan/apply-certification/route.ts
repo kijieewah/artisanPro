@@ -1,3 +1,4 @@
+// app/api/artisan/apply-certification/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "~/lib/auth1";
 import { prisma } from "~/lib/db";
@@ -10,16 +11,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { artisanId, serviceId, status = "SUBMITTED" } = body;
+    
+    // Type assertion for the body
+    const { artisanId, serviceId, status = "SUBMITTED" } = body as {
+      artisanId?: string | number;
+      serviceId?: number;
+      status?: string;
+    };
 
     if (!artisanId || !serviceId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Convert artisanId to string if it's a number (or keep as is)
+    const artisanIdStr = artisanId.toString();
+
     // Verify the artisan belongs to the user
     const artisanProfile = await prisma.artisanProfile.findFirst({
       where: {
-        id: artisanId,
+        id: artisanIdStr, // Now this matches Prisma's expected string type
         userId: user.id,
       },
     });
@@ -43,7 +53,7 @@ export async function POST(request: NextRequest) {
 
       const uploadedDocs = await prisma.requirementUpload.findMany({
         where: {
-          artisanId: artisanId,
+          artisanId: artisanIdStr,
           serviceId: serviceId,
           requirementId: { in: requiredRequirementIds },
         },
@@ -64,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Check if an application already exists and is not rejected/expired
     const existingApplication = await prisma.application.findFirst({
       where: {
-        artisanId: artisanId,
+        artisanId: artisanIdStr,
         serviceId: serviceId,
         status: { notIn: ["REJECTED", "EXPIRED"] },
       },
@@ -97,7 +107,7 @@ export async function POST(request: NextRequest) {
     const application = await prisma.application.create({
       data: {
         applicationNumber,
-        artisanId: artisanId,
+        artisanId: artisanIdStr,
         serviceId: serviceId,
         status: status === "SUBMITTED" ? "SUBMITTED" : "DRAFT",
         completionScore: 0,
@@ -117,7 +127,7 @@ export async function POST(request: NextRequest) {
 
       const uploadedDocs = await prisma.requirementUpload.findMany({
         where: {
-          artisanId: artisanId,
+          artisanId: artisanIdStr,
           serviceId: serviceId,
         },
       });

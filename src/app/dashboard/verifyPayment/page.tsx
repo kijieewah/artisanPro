@@ -1,9 +1,31 @@
+// app/dashboard/verifyPayment/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Define response types
+interface PaystackVerifyResponse {
+  status: boolean;
+  message: string;
+  data: {
+    status: string;
+    reference: string;
+    amount: number;
+    currency: string;
+    transaction_date: string;
+    metadata?: {
+      user_id?: string;
+      plan_id?: string;
+      plan_name?: string;
+      billing_period?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+}
 
 export default function VerifyPaymentPage() {
   const searchParams = useSearchParams();
@@ -24,7 +46,7 @@ export default function VerifyPaymentPage() {
 
       try {
         const response = await fetch(`/api/payments/verify?reference=${reference}`);
-        const data = await response.json();
+        const data = await response.json() as PaystackVerifyResponse;
 
         if (!response.ok) {
           throw new Error(data.message || 'Verification failed');
@@ -65,6 +87,7 @@ export default function VerifyPaymentPage() {
           toast.error('Payment verification failed');
         }
       } catch (error: any) {
+        console.error('Verification error:', error);
         setStatus('failed');
         setMessage(error.message || 'Payment verification failed');
         toast.error('Payment verification failed');

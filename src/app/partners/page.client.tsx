@@ -35,7 +35,7 @@ const colors = {
   dark: "#343a40",
 };
 
-// Nigerian States
+// Nigerian States (Fallback)
 const FALLBACK_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno",
   "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa",
@@ -54,6 +54,7 @@ const PARTNER_TYPES = [
   { value: "OTHER", label: "Other" }
 ];
 
+// --- Type Definitions ---
 interface Industry {
   id: number;
   name: string;
@@ -86,6 +87,29 @@ interface SelectedIndustryService {
 interface State {
   id: number;
   name: string;
+}
+
+// API Response Types
+interface IndustriesApiResponse {
+  success?: boolean;
+  data?: Industry[];
+  industries?: Industry[];
+}
+
+interface ServicesApiResponse {
+  success?: boolean;
+  data?: Service[];
+  services?: Service[];
+}
+
+interface SingleIndustryServicesApiResponse {
+  success?: boolean;
+  data?: Service[];
+}
+
+interface StatesApiResponse {
+  success?: boolean;
+  data?: State[];
 }
 
 export function PartnersPageClient() {
@@ -136,18 +160,18 @@ export function PartnersPageClient() {
   const [accreditationDoc, setAccreditationDoc] = useState<File | null>(null);
   const [logo, setLogo] = useState<File | null>(null);
 
-  // Fetch industries on mount
+  // --- Data Fetching with Type Assertions ---
   useEffect(() => {
     const fetchIndustries = async () => {
       try {
         setLoadingIndustries(true);
         const response = await fetch("/api/industries");
-        const result = await response.json();
+        const result = (await response.json()) as IndustriesApiResponse;
         
         if (result.success && result.data) {
           setIndustries(result.data);
         } else if (Array.isArray(result)) {
-          setIndustries(result);
+          setIndustries(result as Industry[]);
         } else if (result.industries) {
           setIndustries(result.industries);
         } else {
@@ -164,17 +188,16 @@ export function PartnersPageClient() {
     fetchIndustries();
   }, []);
 
-  // Fetch all services
   useEffect(() => {
     const fetchAllServices = async () => {
       try {
         const response = await fetch("/api/services");
-        const result = await response.json();
+        const result = (await response.json()) as ServicesApiResponse;
         
         if (result.success && result.data) {
           setAllServices(result.data);
         } else if (Array.isArray(result)) {
-          setAllServices(result);
+          setAllServices(result as Service[]);
         } else if (result.services) {
           setAllServices(result.services);
         }
@@ -186,7 +209,6 @@ export function PartnersPageClient() {
     fetchAllServices();
   }, []);
 
-  // Fetch services for current industry selection
   useEffect(() => {
     const fetchServicesForIndustry = async () => {
       if (!currentIndustryId) {
@@ -197,12 +219,12 @@ export function PartnersPageClient() {
       try {
         setLoadingServices(true);
         const response = await fetch(`/api/industries/${currentIndustryId}/services`);
-        const result = await response.json();
+        const result = (await response.json()) as SingleIndustryServicesApiResponse;
         
         if (result.success && result.data) {
           setCurrentIndustryServices(result.data);
         } else if (Array.isArray(result)) {
-          setCurrentIndustryServices(result);
+          setCurrentIndustryServices(result as Service[]);
         } else {
           setCurrentIndustryServices([]);
         }
@@ -217,18 +239,17 @@ export function PartnersPageClient() {
     fetchServicesForIndustry();
   }, [currentIndustryId]);
 
-  // Fetch states on mount
   useEffect(() => {
     const fetchStates = async () => {
       try {
         setLoadingStates(true);
         const response = await fetch("/api/states");
-        const result = await response.json();
+        const result = (await response.json()) as StatesApiResponse;
         
         if (result.success && result.data) {
           setStates(result.data);
         } else if (Array.isArray(result)) {
-          setStates(result);
+          setStates(result as State[]);
         } else {
           setStates([]);
         }
@@ -243,6 +264,7 @@ export function PartnersPageClient() {
     fetchStates();
   }, []);
 
+  // --- Scroll Handling & UI Effects ---
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
@@ -254,6 +276,7 @@ export function PartnersPageClient() {
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
+  // --- Modal Control Functions ---
   const openModal = () => {
     setFormData({
       businessName: "",
@@ -297,6 +320,7 @@ export function PartnersPageClient() {
     setSubmitMessage("");
   };
 
+  // --- Form Input Handlers ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -311,6 +335,7 @@ export function PartnersPageClient() {
     }
   };
 
+  // --- Industry/Service Selection Logic ---
   const addIndustryService = () => {
     if (!currentIndustryId) {
       setError("Please select an industry");
@@ -354,6 +379,7 @@ export function PartnersPageClient() {
     );
   };
 
+  // --- Step Validation ---
   const validateOrganizationStep = () => {
     if (!formData.businessName || !formData.registrationNumber || !formData.businessEmail || 
         !formData.businessPhone || !formData.address || !formData.city || !formData.state) {
@@ -386,6 +412,7 @@ export function PartnersPageClient() {
     return true;
   };
 
+  // --- Form Submission ---
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
     if (step === "organization" && validateOrganizationStep()) {
@@ -402,72 +429,77 @@ export function PartnersPageClient() {
     if (step === "services") setStep("contact");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError("");
-    setSubmitMessage("");
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setSubmitting(true);
+  setError("");
+  setSubmitMessage("");
 
-    const industriesData = selectedIndustriesServices.map(item => ({
-      industryId: item.industryId,
-      serviceIds: item.serviceIds,
-    }));
+  const industriesData = selectedIndustriesServices.map(item => ({
+    industryId: item.industryId,
+    serviceIds: item.serviceIds,
+  }));
 
-    try {
-      const submitData = new FormData();
-      submitData.append("businessName", formData.businessName);
-      submitData.append("registrationNumber", formData.registrationNumber);
-      submitData.append("taxId", formData.taxId || "");
-      submitData.append("businessEmail", formData.businessEmail);
-      submitData.append("businessPhone", formData.businessPhone);
-      submitData.append("website", formData.website || "");
-      submitData.append("address", formData.address);
-      submitData.append("city", formData.city);
-      submitData.append("state", formData.state);
-      submitData.append("description", formData.description || "");
-      submitData.append("partnerType", formData.partnerType);
-      submitData.append("contactName", formData.contactName);
-      submitData.append("contactPosition", formData.contactPosition);
-      submitData.append("contactEmail", formData.contactEmail);
-      submitData.append("contactPhone", formData.contactPhone);
-      submitData.append("industries", JSON.stringify(industriesData));
+  try {
+    const submitData = new FormData();
+    submitData.append("businessName", formData.businessName);
+    submitData.append("registrationNumber", formData.registrationNumber);
+    submitData.append("taxId", formData.taxId || "");
+    submitData.append("businessEmail", formData.businessEmail);
+    submitData.append("businessPhone", formData.businessPhone);
+    submitData.append("website", formData.website || "");
+    submitData.append("address", formData.address);
+    submitData.append("city", formData.city);
+    submitData.append("state", formData.state);
+    submitData.append("description", formData.description || "");
+    submitData.append("partnerType", formData.partnerType);
+    submitData.append("contactName", formData.contactName);
+    submitData.append("contactPosition", formData.contactPosition);
+    submitData.append("contactEmail", formData.contactEmail);
+    submitData.append("contactPhone", formData.contactPhone);
+    submitData.append("industries", JSON.stringify(industriesData));
+    
+    // Only append files if they exist (not null)
+    if (accreditationDoc) {
       submitData.append("accreditationDoc", accreditationDoc);
-      
-      if (logo) {
-        submitData.append("logo", logo);
-      }
-
-      const response = await fetch("/api/partners/register", {
-        method: "POST",
-        body: submitData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Application failed");
-      }
-
-      setSubmitMessage("✓ Application received! Our partnership team will contact you within 3-5 business days.");
-      setShowModal(false);
-      setShowSuccessModal(true);
-      
-      // Reset form
-      setFormData({
-        businessName: "", registrationNumber: "", taxId: "", businessEmail: "", businessPhone: "",
-        website: "", address: "", city: "", state: "", description: "", partnerType: "TRAINING_PROVIDER",
-        contactName: "", contactPosition: "", contactEmail: "", contactPhone: "",
-      });
-      setSelectedIndustriesServices([]);
-      setAccreditationDoc(null);
-      setLogo(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Application failed");
-    } finally {
-      setSubmitting(false);
     }
-  };
+    
+    if (logo) {
+      submitData.append("logo", logo);
+    }
 
+    const response = await fetch("/api/partners/register", {
+      method: "POST",
+      body: submitData,
+    });
+
+    const data = await response.json() as { error?: string };
+
+    if (!response.ok) {
+      throw new Error(data.error || "Application failed");
+    }
+
+    setSubmitMessage("✓ Application received! Our partnership team will contact you within 3-5 business days.");
+    setShowModal(false);
+    setShowSuccessModal(true);
+    
+    // Reset form
+    setFormData({
+      businessName: "", registrationNumber: "", taxId: "", businessEmail: "", businessPhone: "",
+      website: "", address: "", city: "", state: "", description: "", partnerType: "TRAINING_PROVIDER",
+      contactName: "", contactPosition: "", contactEmail: "", contactPhone: "",
+    });
+    setSelectedIndustriesServices([]);
+    setAccreditationDoc(null);
+    setLogo(null);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Application failed");
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+  // --- Render Data ---
   const partnerTypes = [
     {
       id: "training",
@@ -855,39 +887,39 @@ export function PartnersPageClient() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Organization Name *</label>
-                        <input type="text" name="businessName" value={formData.businessName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="text" name="businessName" value={formData.businessName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Registration Number *</label>
-                        <input type="text" name="registrationNumber" value={formData.registrationNumber} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="text" name="registrationNumber" value={formData.registrationNumber} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Tax ID</label>
-                        <input type="text" name="taxId" value={formData.taxId} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} />
+                        <input type="text" name="taxId" value={formData.taxId} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Business Email *</label>
-                        <input type="email" name="businessEmail" value={formData.businessEmail} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="email" name="businessEmail" value={formData.businessEmail} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Business Phone *</label>
-                        <input type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Website</label>
-                        <input type="url" name="website" value={formData.website} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} />
+                        <input type="url" name="website" value={formData.website} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Street Address *</label>
-                        <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>City *</label>
-                        <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>State *</label>
-                        <select name="state" value={formData.state} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required>
+                        <select name="state" value={formData.state} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required>
                           <option value="">Select State</option>
                           {loadingStates ? (
                             <option disabled>Loading states...</option>
@@ -900,23 +932,23 @@ export function PartnersPageClient() {
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Organization Description</label>
-                        <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} placeholder="Tell us about your organization, mission, and how you'd like to partner with ArtisanPro" />
+                        <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" placeholder="Tell us about your organization, mission, and how you'd like to partner with ArtisanPro" />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Partner Type *</label>
-                        <select name="partnerType" value={formData.partnerType} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required>
+                        <select name="partnerType" value={formData.partnerType} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required>
                           {PARTNER_TYPES.map(type => (<option key={type.value} value={type.value}>{type.label}</option>))}
                         </select>
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Accreditation Document *</label>
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'accreditation')} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" style={{ focusRingColor: colors.primary }} required />
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'accreditation')} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" required />
                         <p className="text-xs text-gray-500 mt-1">Upload PDF, JPG, or PNG (max 5MB)</p>
                         {accreditationDoc && <p className="text-xs text-green-600 mt-1">✓ {accreditationDoc.name}</p>}
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Organization Logo</label>
-                        <input type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'logo')} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" style={{ focusRingColor: colors.primary }} />
+                        <input type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'logo')} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" />
                         <p className="text-xs text-gray-500 mt-1">Recommended: 500x500px, PNG or JPG (max 2MB)</p>
                         {logo && <p className="text-xs text-green-600 mt-1">✓ {logo.name}</p>}
                       </div>
@@ -935,19 +967,19 @@ export function PartnersPageClient() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Full Name *</label>
-                        <input type="text" name="contactName" value={formData.contactName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="text" name="contactName" value={formData.contactName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Position *</label>
-                        <input type="text" name="contactPosition" value={formData.contactPosition} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="text" name="contactPosition" value={formData.contactPosition} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Email *</label>
-                        <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Phone *</label>
-                        <input type="tel" name="contactPhone" value={formData.contactPhone} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2" style={{ focusRingColor: colors.primary }} required />
+                        <input type="tel" name="contactPhone" value={formData.contactPhone} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
                       </div>
                     </div>
                   </div>
@@ -971,8 +1003,7 @@ export function PartnersPageClient() {
                           <select
                             value={currentIndustryId}
                             onChange={(e) => setCurrentIndustryId(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2"
-                            style={{ focusRingColor: colors.primary }}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]"
                           >
                             <option value="">Select industry</option>
                             {availableIndustries.map((industry) => (

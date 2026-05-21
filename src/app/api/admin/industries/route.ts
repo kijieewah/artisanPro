@@ -7,11 +7,6 @@ import { authOptions } from "~/lib/auth";
 // GET - Fetch all industries with pagination and search
 export async function GET(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -74,13 +69,14 @@ export async function GET(request: NextRequest) {
 // POST - Create a new industry
 export async function POST(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const body = await request.json();
-    const { name, description, status } = body;
+    
+    // Type assertion
+    const { name, description, status } = body as {
+      name?: string;
+      description?: string;
+      status?: boolean;
+    };
 
     if (!name) {
       return NextResponse.json(
@@ -110,11 +106,6 @@ export async function POST(request: NextRequest) {
 // PUT - Update an industry
 export async function PUT(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const body = await request.json();
@@ -126,18 +117,23 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { name, description, status } = body;
+    // Type assertion
+    const { name, description, status } = body as {
+      name?: string;
+      description?: string;
+      status?: boolean;
+    };
 
     const industry = await prisma.industries.update({
       where: { id: parseInt(id) },
       data: {
-        name: name || undefined,
+        name: name !== undefined ? name : undefined,
         description: description !== undefined ? description : undefined,
         status: status !== undefined ? status : undefined,
       },
     });
 
-    return NextResponse.json({ industries });
+    return NextResponse.json({ industry });
   } catch (error) {
     console.error("Error updating industry:", error);
     return NextResponse.json(
@@ -150,11 +146,6 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete an industry
 export async function DELETE(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

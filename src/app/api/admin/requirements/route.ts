@@ -1,17 +1,26 @@
 // app/api/admin/requirements/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "~/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "~/lib/auth";
+import { z } from "zod";
+
+// Define validation schemas
+const createRequirementSchema = z.object({
+  serviceId: z.number().min(1, "Service ID is required"),
+  name: z.string().min(1, "Requirement name is required"),
+  type: z.enum(["MANDATORY", "OPTIONAL"]).optional().default("MANDATORY"),
+  status: z.boolean().optional().default(true),
+});
+
+const updateRequirementSchema = z.object({
+  serviceId: z.number().optional(),
+  name: z.string().optional(),
+  type: z.enum(["MANDATORY", "OPTIONAL"]).optional(),
+  status: z.boolean().optional(),
+});
 
 // GET - Fetch all requirements with pagination and search
 export async function GET(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -19,7 +28,6 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause for search
     const where = search ? {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
@@ -27,7 +35,6 @@ export async function GET(request: NextRequest) {
       ],
     } : {};
 
-    // Get requirements with count
     const [requirements, total] = await Promise.all([
       prisma.requirement.findMany({
         where,
@@ -38,9 +45,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
@@ -66,27 +71,22 @@ export async function GET(request: NextRequest) {
 // POST - Create a new requirement
 export async function POST(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const body = await request.json();
-    const { serviceId, name, type, status } = body;
-
-    if (!serviceId) {
+    
+    // Validate with Zod
+    const validation = createRequirementSchema.safeParse(body);
+    
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Service ID is required" },
+        { 
+          error: "Invalid request data", 
+          details: validation.error.errors 
+        },
         { status: 400 }
       );
     }
 
-    if (!name) {
-      return NextResponse.json(
-        { error: "Requirement name is required" },
-        { status: 400 }
-      );
-    }
+    const { serviceId, name, type, status } = validation.data;
 
     // Verify service exists
     const service = await prisma.service.findUnique({
@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
       data: {
         serviceId,
         name,
-        type: type || "MANDATORY",
-        status: status !== undefined ? status : true,
+        type,
+        status,
       },
       include: {
         service: {
@@ -129,11 +129,6 @@ export async function POST(request: NextRequest) {
 // PUT - Update a requirement
 export async function PUT(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const body = await request.json();
@@ -145,16 +140,32 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { serviceId, name, type, status } = body;
+    // Validate with Zod
+    const validation = updateRequirementSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return NextResponse.json(
+        { 
+          error: "Invalid request data", 
+          details: validation.error.errors 
+        },
+        { status: 400 }
+      );
+    }
+
+    const updateData = validation.data;
+
+    // Only update if there's data to update
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 }
+      );
+    }
 
     const requirement = await prisma.requirement.update({
       where: { id: parseInt(id) },
-      data: {
-        serviceId: serviceId || undefined,
-        name: name || undefined,
-        type: type || undefined,
-        status: status !== undefined ? status : undefined,
-      },
+      data: updateData,
       include: {
         service: {
           include: {
@@ -177,11 +188,6 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a requirement
 export async function DELETE(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user || session.user.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

@@ -10,26 +10,17 @@ import {
   Filter,
   Clock,
   Calendar,
-  DollarSign,
   Star,
   Users,
   GraduationCap,
   BookOpen,
-  Award,
   ChevronRight,
   X,
   Loader2,
-  MapPin,
   Globe,
   Building2,
-  Mail,
-  Phone,
-  ExternalLink,
-  TrendingUp,
-  Zap,
   Sparkles,
-  Heart,
-  Share2,
+  Zap,
 } from "lucide-react";
 
 const colors = {
@@ -81,15 +72,27 @@ interface Course {
 interface Service {
   id: number;
   name: string;
+  description?: string;
+  status: boolean;
+  industryId: number;
+  image?: string;
+  createdAt: Date;
+  updatedAt: Date;
   industry: {
     id: number;
     name: string;
+    description?: string;
+    status: boolean;
   };
 }
 
 interface Industry {
   id: number;
   name: string;
+  description?: string;
+  status: boolean;
+  createdAt: Date;
+  updatedAt: Date;
   services: Service[];
 }
 
@@ -203,7 +206,11 @@ export default function TrainingClient({
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as { 
+        error?: string; 
+        success?: boolean;
+        enrollment?: any;
+      };
 
       if (response.ok) {
         toast.success("Successfully enrolled in the course!");
@@ -218,11 +225,6 @@ export default function TrainingClient({
     } finally {
       setIsEnrolling(false);
     }
-  };
-
-  const handleContactPartner = (partner: Course["partner"]) => {
-    // In a real app, this would open a modal or redirect to partner page
-    toast.info(`Contact ${partner.businessName} for more information`);
   };
 
   const CourseCard = ({ course, variant = "default" }: { course: Course; variant?: "default" | "compact" }) => {
@@ -411,9 +413,6 @@ export default function TrainingClient({
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Recommended for You</h2>
-            <Link href="#" className="text-sm text-blue-600 hover:underline">
-              View all
-            </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {recommendedCourses.slice(0, 3).map((course) => (
@@ -428,9 +427,6 @@ export default function TrainingClient({
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Popular Courses</h2>
-            <Link href="#" className="text-sm text-blue-600 hover:underline">
-              View all
-            </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {popularCourses.slice(0, 3).map((course) => (
@@ -583,41 +579,6 @@ export default function TrainingClient({
                     ) : (
                       "Enroll Now"
                     )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Contact Partner */}
-              <div>
-                <h3 className="font-semibold mb-2">Course Provider</h3>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {selectedCourse.partner.logoUrl ? (
-                      <div className="relative h-12 w-12">
-                        <Image
-                          src={selectedCourse.partner.logoUrl}
-                          alt={selectedCourse.partner.businessName}
-                          fill
-                          className="object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Building2 className="h-6 w-6 text-blue-600" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium">{selectedCourse.partner.businessName}</p>
-                      <p className="text-xs text-gray-500">
-                        {selectedCourse.partner.partnerType || "Training Provider"}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleContactPartner(selectedCourse.partner)}
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 transition-colors"
-                  >
-                    Contact Provider
                   </button>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-// app/auth/sign-in/page.client.tsx
+// app/auth/sign-in/[[...signin]]/page.client.tsx
 "use client";
 
 import { useState } from "react";
@@ -110,7 +110,10 @@ export function SignInClient() {
                     value={formData.email}
                     onChange={handleChange}
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
-                    style={{ focusRingColor: colors.primary }}
+                    style={{ 
+                      outline: "none",
+                      transition: "all 0.2s"
+                    }}
                     placeholder="you@example.com"
                     required
                   />
@@ -128,8 +131,7 @@ export function SignInClient() {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
-                    style={{ focusRingColor: colors.primary }}
+                    className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                     placeholder="••••••••"
                     required
                   />

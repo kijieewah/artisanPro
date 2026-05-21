@@ -434,9 +434,10 @@ function IndustryModal({
         body: JSON.stringify(formData),
       });
 
+      const responseData = await response.json() as { error?: string; success?: boolean };
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${isEditing ? "update" : "create"} industry`);
+        throw new Error(responseData.error || `Failed to ${isEditing ? "update" : "create"} industry`);
       }
 
       toast.success(isEditing ? "Industry updated successfully!" : "Industry created successfully!");
@@ -563,9 +564,10 @@ function ServiceModal({
         body: JSON.stringify(formData),
       });
 
+      const responseData = await response.json() as { error?: string; success?: boolean };
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${isEditing ? "update" : "create"} service`);
+        throw new Error(responseData.error || `Failed to ${isEditing ? "update" : "create"} service`);
       }
 
       toast.success(isEditing ? "Service updated successfully!" : "Service created successfully!");
@@ -713,9 +715,10 @@ function RequirementModal({
         body: JSON.stringify(formData),
       });
 
+      const responseData = await response.json() as { error?: string; success?: boolean };
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${isEditing ? "update" : "create"} requirement`);
+        throw new Error(responseData.error || `Failed to ${isEditing ? "update" : "create"} requirement`);
       }
 
       toast.success(isEditing ? "Requirement updated successfully!" : "Requirement created successfully!");
@@ -849,7 +852,7 @@ function PartnerDetailModal({ partner, isOpen, onClose, onStatusChange }: { part
         body: JSON.stringify({ status: "ACTIVE" }),
       });
       
-      const data = await response.json();
+      const data = await response.json() as { success?: boolean; error?: string };
       if (data.success) {
         toast.success(`${partner.businessName} approved successfully!`);
         onStatusChange();
@@ -877,7 +880,7 @@ function PartnerDetailModal({ partner, isOpen, onClose, onStatusChange }: { part
         body: JSON.stringify({ status: "REJECTED", rejectionReason: reason }),
       });
       
-      const data = await response.json();
+      const data = await response.json() as { success?: boolean; error?: string };
       if (data.success) {
         toast.success(`${partner.businessName} rejected.`);
         onStatusChange();
@@ -1427,7 +1430,7 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       const response = await fetch("/api/admin/stats");
-      const data = await response.json();
+      const data = await response.json() as AdminStats;
       setStats(data);
     } catch (error) {
       console.error("Failed to fetch stats:", error);
@@ -1438,7 +1441,7 @@ export default function AdminDashboard() {
     try {
       setIsSearching(true);
       const response = await fetch(`/api/admin/users?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`);
-      const data = await response.json();
+      const data = await response.json() as { users: User[]; total: number };
       setUsers(data.users || []);
       setUsersTotal(data.total || 0);
     } catch (error) {
@@ -1452,7 +1455,7 @@ export default function AdminDashboard() {
   const fetchArtisans = async (page: number = 1, search: string = "") => {
     try {
       const response = await fetch(`/api/admin/artisans?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`);
-      const data = await response.json();
+      const data = await response.json() as { artisans: ArtisanProfile[]; total: number };
       setArtisans(data.artisans || []);
       setArtisansTotal(data.total || 0);
     } catch (error) {
@@ -1464,7 +1467,7 @@ export default function AdminDashboard() {
   const fetchPartners = async (page: number = 1, search: string = "") => {
     try {
       const response = await fetch(`/api/admin/partners?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`);
-      const data = await response.json();
+      const data = await response.json() as { success: boolean; partners: PartnerWithDetails[]; total: number; error?: string };
       if (data.success) {
         setPartners(data.partners || []);
         setPartnersTotal(data.total || 0);
@@ -1482,7 +1485,7 @@ export default function AdminDashboard() {
   const fetchIndustries = async (page: number = 1, search: string = "") => {
     try {
       const response = await fetch(`/api/admin/industries?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`);
-      const data = await response.json();
+      const data = await response.json() as { industries: Industry[]; total: number };
       setIndustries(data.industries || []);
       setIndustriesTotal(data.total || 0);
     } catch (error) {
@@ -1493,7 +1496,7 @@ export default function AdminDashboard() {
   const fetchServices = async (page: number = 1, search: string = "") => {
     try {
       const response = await fetch(`/api/admin/services?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`);
-      const data = await response.json();
+      const data = await response.json() as { services: Service[]; total: number };
       setServices(data.services || []);
       setServicesTotal(data.total || 0);
     } catch (error) {
@@ -1504,7 +1507,7 @@ export default function AdminDashboard() {
   const fetchRequirements = async (page: number = 1, search: string = "") => {
     try {
       const response = await fetch(`/api/admin/requirements?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(search)}`);
-      const data = await response.json();
+      const data = await response.json() as { requirements: Requirement[]; total: number };
       setRequirements(data.requirements || []);
       setRequirementsTotal(data.total || 0);
     } catch (error) {
@@ -1515,7 +1518,7 @@ export default function AdminDashboard() {
   const fetchAllServices = async () => {
     try {
       const response = await fetch(`/api/admin/services?limit=1000`);
-      const data = await response.json();
+      const data = await response.json() as { services: Service[] };
       setAllServices(data.services || []);
     } catch (error) {
       console.error("Failed to fetch all services:", error);
@@ -1660,7 +1663,7 @@ export default function AdminDashboard() {
           throw new Error("Invalid item type");
       }
       
-      const data = await response.json();
+      const data = await response.json() as { error?: string; success?: boolean };
       
       if (!response.ok) {
         throw new Error(data.error || `Failed to delete ${deletingItem.type}`);

@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcrypt";
 import { prisma } from "~/lib/db";
 
-
-
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -68,11 +66,17 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hash(password, 10);
 
-    // Parse skills
+    // Parse skills with proper type assertion
     let skillsArray: string[] = [];
     if (skillsRaw) {
       try {
-        skillsArray = JSON.parse(skillsRaw);
+        const parsed = JSON.parse(skillsRaw);
+        // Ensure parsed is an array of strings
+        if (Array.isArray(parsed)) {
+          skillsArray = parsed.filter((item): item is string => typeof item === 'string');
+        } else {
+          skillsArray = [];
+        }
       } catch {
         skillsArray = [];
       }

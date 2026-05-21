@@ -2,7 +2,6 @@
 import { getCurrentUser } from "~/lib/auth1";
 import { prisma } from "~/lib/db";
 import { redirect } from "next/navigation";
-// import ProfileClient from "./page.client";
 import ProfileClient from "./page.client";
 
 export default async function ProfilePage() {
@@ -72,7 +71,6 @@ export default async function ProfilePage() {
         gender: artisanProfile.gender,
         dateOfBirth: artisanProfile.dateOfBirth,
         address: artisanProfile.address,
-        city: artisanProfile.city,
         stateId: artisanProfile.stateId,
         stateName: artisanProfile.state?.name,
         localGovernmentId: artisanProfile.localGovernmentId,
@@ -89,7 +87,7 @@ export default async function ProfilePage() {
           serviceId: as.serviceId,
           serviceName: as.service.name,
           industryName: as.service.industry?.name,
-          experience: as.experience,
+          experience: as.experience || undefined, // Convert null to undefined
         })),
       }
     : null;

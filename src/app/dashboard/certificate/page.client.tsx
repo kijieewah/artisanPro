@@ -65,6 +65,13 @@ interface CertificateClientProps {
   pendingCertificates: PendingCertificate[];
 }
 
+// Define response type
+interface GenerateCertificateResponse {
+  success?: boolean;
+  error?: string;
+  certificate?: Certificate;
+}
+
 export default function CertificateClient({
   user,
   artisanProfile,
@@ -86,7 +93,7 @@ export default function CertificateClient({
         body: JSON.stringify({ applicationId }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as GenerateCertificateResponse;
 
       if (response.ok) {
         toast.success("Certificate generated successfully!");

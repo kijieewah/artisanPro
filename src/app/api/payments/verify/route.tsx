@@ -1,7 +1,20 @@
-// app/api/payment/verify/route.ts
+// app/api/payments/verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "~/lib/auth1";
 import { prisma } from "~/lib/db";
+
+interface PaystackVerificationResponse {
+  status: boolean;
+  message: string;
+  data: {
+    status: string;
+    reference: string;
+    amount: number;
+    currency: string;
+    transaction_date: string;
+    [key: string]: unknown;
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +24,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { reference, applicationId } = body;
+    const { reference, applicationId } = body as {
+      reference?: string;
+      applicationId?: string;
+    };
 
     if (!reference || !applicationId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -25,11 +41,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const paystackData = await paystackResponse.json();
+    const paystackData = await paystackResponse.json() as PaystackVerificationResponse;
 
     if (!paystackData.status || paystackData.data.status !== "success") {
-      return NextResponse.json({ error: "Payment verification failed" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Payment verification failed", details: paystackData.message },
+        { status: 400 }
+      );
     }
+
+    // Check if transaction already exists
+    const existingTransaction = await prisma.paymentTransaction.findUnique({
+      where: { transactionRef: reference },
+    });
+
+    if (existingTransaction && existingTransaction.status === "COMPLETED") {
+      const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "Payment already verified",
+        application,
+      });
+    }
+
+    // Convert the response to a plain object that Prisma can accept
+    const gatewayResponse = {
+      status: paystackData.data.status,
+      reference: paystackData.data.reference,
+      amount: paystackData.data.amount,
+      currency: paystackData.data.currency,
+      transaction_date: paystackData.data.transaction_date,
+    };
 
     // Update payment transaction
     const transaction = await prisma.paymentTransaction.update({
@@ -37,7 +81,7 @@ export async function POST(request: NextRequest) {
       data: {
         status: "COMPLETED",
         paidAt: new Date(),
-        gatewayResponse: paystackData.data,
+        gatewayResponse: gatewayResponse as any, // Use 'as any' to bypass strict type checking
       },
     });
 
@@ -53,12 +97,40 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create notification
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: "PAYMENT_SUCCESS",
+        title: "Payment Successful",
+        content: `Your payment for application ${application.applicationNumber} has been confirmed.`,
+        channel: "IN_APP",
+        priority: "HIGH",
+        status: "SENT",
+        deliveredAt: new Date(),
+        metadata: {
+          applicationId: application.id,
+          applicationNumber: application.applicationNumber,
+          amount: paystackData.data.amount / 100,
+        },
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      application,
+      message: "Payment verified successfully",
+      application: {
+        id: application.id,
+        applicationNumber: application.applicationNumber,
+        status: application.status,
+        paymentStatus: application.paymentStatus,
+      },
     });
   } catch (error) {
     console.error("Payment verification error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      { status: 500 }
+    );
   }
 }

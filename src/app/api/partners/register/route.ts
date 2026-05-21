@@ -1,3 +1,4 @@
+// app/api/partners/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "~/lib/db";
 import { uploadImage } from "~/lib/upload-image";
@@ -10,6 +11,24 @@ export const config = {
     },
   },
 };
+
+interface IndustryServiceSelection {
+  industryId: number;
+  serviceIds: number[];
+}
+
+// Type guard function to validate IndustryServiceSelection
+function isValidIndustryServiceSelection(data: unknown): data is IndustryServiceSelection {
+  if (typeof data !== 'object' || data === null) return false;
+  
+  const obj = data as Record<string, unknown>;
+  
+  return (
+    typeof obj.industryId === 'number' &&
+    Array.isArray(obj.serviceIds) &&
+    obj.serviceIds.every((id: unknown) => typeof id === 'number')
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,15 +55,21 @@ export async function POST(request: NextRequest) {
     const accreditationDoc = formData.get("accreditationDoc") as File;
     const logo = formData.get("logo") as File;
     
-    // Parse industries with their services
-    interface IndustryServiceSelection {
-      industryId: number;
-      serviceIds: number[];
-    }
+    // Parse industries with their services - with proper type checking using type guard
+    let selectedIndustriesWithServices: IndustryServiceSelection[] = [];
     
-    const selectedIndustriesWithServices: IndustryServiceSelection[] = industriesJson 
-      ? JSON.parse(industriesJson) 
-      : [];
+    if (industriesJson) {
+      try {
+        const parsed = JSON.parse(industriesJson);
+        if (Array.isArray(parsed)) {
+          // Filter and validate each item using the type guard
+          selectedIndustriesWithServices = parsed.filter(isValidIndustryServiceSelection);
+        }
+      } catch (error) {
+        console.error("Failed to parse industries JSON:", error);
+        selectedIndustriesWithServices = [];
+      }
+    }
     
     // Extract unique industry IDs
     const selectedIndustryIds = selectedIndustriesWithServices.map(item => item.industryId);
@@ -80,7 +105,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Upload logo if provided
-      if (logo) {
+      if (logo && logo.size > 0) {
         const logoResult = await uploadImage(logo, "partners/logos");
         if (logoResult) {
           logoUrl = logoResult.secure_url;

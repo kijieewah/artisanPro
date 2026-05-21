@@ -12,7 +12,6 @@ import {
   Clock,
   AlertCircle,
   FileText,
-  File,
   Trash2,
   Eye,
   Download,
@@ -20,7 +19,6 @@ import {
   X,
   Loader2,
   ChevronRight,
-  ChevronDown,
   Award,
   Shield,
   FileCheck,
@@ -36,7 +34,6 @@ import {
   GraduationCap,
   CreditCard,
 } from "lucide-react";
-import { format } from "date-fns";
 
 // Brand Colors
 const colors = {
@@ -52,7 +49,6 @@ interface Requirement {
   id: number;
   name: string;
   type: string;
-  description: string;
   isUploaded: boolean;
   upload?: {
     id: number;
@@ -64,11 +60,18 @@ interface Requirement {
 interface Service {
   id: number;
   name: string;
-  description?: string;
+  description?: string;  // Make optional, not string | null
+  image?: string;
+  status: boolean;
+  industryId: number;
   industry: {
     id: number;
     name: string;
+    description?: string;
+    status: boolean;
   };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface Progress {
@@ -83,14 +86,20 @@ interface Progress {
 }
 
 interface Application {
-  id: number;
+  id: string;
   status: string;
   submittedAt?: Date;
   applicationNumber?: string;
 }
 
+interface User {
+  name: string;
+  email: string;
+  phone?: string;
+}
+
 interface ArtisanProfile {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   phone?: string;
@@ -98,14 +107,6 @@ interface ArtisanProfile {
   bio?: string;
   state?: { name: string };
   localGovernment?: { name: string };
-}
-
-interface User {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
 }
 
 interface RequirementsClientProps {
@@ -157,7 +158,7 @@ export default function RequirementsClient({
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('artisanId', artisanProfile.id.toString());
+        formData.append('artisanId', artisanProfile.id);
         formData.append('serviceId', service.id.toString());
         formData.append('requirementId', reqId.toString());
         
@@ -166,16 +167,17 @@ export default function RequirementsClient({
           body: formData,
         });
         
+        const responseData = await response.json() as { error?: string; success?: boolean };
+        
         if (response.ok) {
           toast.success(`${requirements.find(r => r.id === reqId)?.name} uploaded successfully!`);
           router.refresh();
         } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Upload failed');
+          throw new Error(responseData.error || 'Upload failed');
         }
       } catch (error) {
         console.error('Upload error:', error);
-        toast.error('Failed to upload document. Please try again.');
+        toast.error(error instanceof Error ? error.message : 'Failed to upload document. Please try again.');
       } finally {
         setUploadingReq(null);
       }
@@ -210,18 +212,22 @@ export default function RequirementsClient({
         body: JSON.stringify({
           artisanId: artisanProfile.id,
           serviceId: service.id,
-          status: "DRAFT", // Create as draft first
+          status: "DRAFT",
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as { 
+        error?: string; 
+        success?: boolean; 
+        application?: { id: string };
+      };
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to create application");
       }
 
       // Redirect to payment page with application ID
-      const paymentUrl = `/payment?applicationId=${data.application.id}&amount=5000&serviceName=${encodeURIComponent(service.name)}`;
+      const paymentUrl = `/payment?applicationId=${data.application?.id}&amount=5000&serviceName=${encodeURIComponent(service.name)}`;
       router.push(paymentUrl);
       
     } catch (error: any) {
@@ -249,7 +255,7 @@ export default function RequirementsClient({
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as { error?: string; success?: boolean };
 
       if (response.ok) {
         toast.success("Application resubmitted for review");
@@ -349,20 +355,56 @@ export default function RequirementsClient({
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Document Requirements</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            {service.name} - {service.industry?.name}
-          </p>
-        </div>
-        {statusBadge && (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${statusBadge.color}`}>
-            <statusBadge.icon className="h-4 w-4" />
-            {statusBadge.text}
+      {/* Welcome Section */}
+      <div className="rounded-lg bg-gradient-to-r p-6 text-white" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Welcome back, {user.name}!</h1>
+            <p className="mt-1 opacity-90">
+              {service.name} - {service.industry?.name}
+            </p>
           </div>
-        )}
+          {statusBadge && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${statusBadge.color}`}>
+              <statusBadge.icon className="h-4 w-4" />
+              {statusBadge.text}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Profile Summary */}
+      <div className="rounded-lg border bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-gray-400" />
+            <span className="font-medium">{artisanProfile.firstName} {artisanProfile.lastName}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-gray-400" />
+            <span>{user.email}</span>
+          </div>
+          {user.phone && (
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-gray-400" />
+              <span>{user.phone}</span>
+            </div>
+          )}
+          {artisanProfile.yearsOfExperience && (
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-gray-400" />
+              <span>{artisanProfile.yearsOfExperience} years experience</span>
+            </div>
+          )}
+          {(artisanProfile.state || artisanProfile.localGovernment) && (
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-gray-400" />
+              <span>
+                {artisanProfile.localGovernment?.name}, {artisanProfile.state?.name}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Progress Section */}

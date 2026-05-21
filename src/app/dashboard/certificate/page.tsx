@@ -32,7 +32,11 @@ export default async function CertificatePage() {
         include: {
           application: {
             include: {
-              service: true,
+              service: {
+                include: {
+                  industry: true, // Add industry relation here
+                },
+              },
             },
           },
           issuer: {
@@ -79,23 +83,24 @@ export default async function CertificatePage() {
 
   const artisanProfile = userWithProfile.artisanProfile;
 
-  const certificates = userWithProfile.certificatesHeld.map((cert) => ({
+  // Safely map certificates with null checks
+  const certificates = (userWithProfile.certificatesHeld || []).map((cert) => ({
     id: cert.id,
     certificateNumber: cert.certificateNumber,
     uniqueCode: cert.uniqueCode,
     qrCodeUrl: cert.qrCodeUrl,
     issuedAt: cert.issuedAt,
     expiresAt: cert.expiresAt,
-    serviceName: cert.application.service.name,
-    industryName: cert.application.service.industry?.name,
-    issuerName: `${cert.issuer.firstName} ${cert.issuer.lastName}`,
+    serviceName: cert.application?.service?.name || "Unknown Service",
+    industryName: cert.application?.service?.industry?.name || "General",
+    issuerName: cert.issuer ? `${cert.issuer.firstName} ${cert.issuer.lastName}` : "System",
   }));
 
-  const pendingCertificates = applications.map((app) => ({
+  const pendingCertificates = (applications || []).map((app) => ({
     id: app.id,
     applicationNumber: app.applicationNumber,
-    serviceName: app.service.name,
-    industryName: app.service.industry?.name,
+    serviceName: app.service?.name || "Unknown Service",
+    industryName: app.service?.industry?.name || "General",
     approvedAt: app.approvedAt,
   }));
 

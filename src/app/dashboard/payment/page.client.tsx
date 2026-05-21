@@ -1,4 +1,4 @@
-// app/payment/page.client.tsx
+// app/dashboard/payment/page.client.tsx
 "use client";
 
 import { useState } from "react";
@@ -26,6 +26,21 @@ const colors = {
   light: "#f8f9fa",
   dark: "#343a40",
 };
+
+// Define response types
+interface PaymentInitializeResponse {
+  success?: boolean;
+  error?: string;
+  reference?: string;
+  authorization_url?: string;
+  access_code?: string;
+}
+
+interface PaymentVerifyResponse {
+  success?: boolean;
+  error?: string;
+  application?: any;
+}
 
 interface PaymentClientProps {
   user: {
@@ -59,7 +74,7 @@ export default function PaymentClient({
 
     try {
       // Initialize payment
-      const response = await fetch("/api/payment/initialize", {
+      const response = await fetch("/api/payments/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -71,7 +86,7 @@ export default function PaymentClient({
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as PaymentInitializeResponse;
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to initialize payment");
@@ -107,7 +122,7 @@ export default function PaymentClient({
           },
           callback: async (response: any) => {
             // Verify payment
-            const verifyResponse = await fetch("/api/payment/verify", {
+            const verifyResponse = await fetch("/api/payments/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -116,11 +131,11 @@ export default function PaymentClient({
               }),
             });
 
-            const verifyData = await verifyResponse.json();
+            const verifyData = await verifyResponse.json() as PaymentVerifyResponse;
 
             if (verifyResponse.ok) {
               toast.success("Payment successful! Your application has been submitted.");
-              router.push(`/payment/success?applicationId=${application.id}`);
+              router.push(`/dashboard/payment/success?applicationId=${application.id}`);
             } else {
               toast.error(verifyData.error || "Payment verification failed");
               setIsProcessing(false);

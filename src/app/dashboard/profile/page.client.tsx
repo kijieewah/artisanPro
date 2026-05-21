@@ -28,7 +28,6 @@ import {
   ChevronDown,
   GraduationCap,
   HardHat,
-  Tool,
   Wrench,
   Zap,
 } from "lucide-react";
@@ -75,7 +74,7 @@ interface ProfileData {
   gender: string | null;
   dateOfBirth: Date | null;
   address: string | null;
-  city: string | null;
+  // city: string | null; // Remove this line
   stateId: number | null;
   stateName?: string;
   localGovernmentId: number | null;
@@ -113,7 +112,7 @@ export default function ProfileClient({
     gender: profile?.gender || "",
     dateOfBirth: profile?.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().split("T")[0] : "",
     address: profile?.address || "",
-    city: profile?.city || "",
+    // city: profile?.city || "",
     stateId: profile?.stateId?.toString() || "",
     localGovernmentId: profile?.localGovernmentId?.toString() || "",
     workingAddress: profile?.workingAddress || "",
@@ -152,56 +151,57 @@ export default function ProfileClient({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      const payload = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
-        gender: formData.gender || null,
-        dateOfBirth: formData.dateOfBirth || null,
-        address: formData.address || null,
-        city: formData.city || null,
-        stateId: formData.stateId ? parseInt(formData.stateId) : null,
-        localGovernmentId: formData.localGovernmentId
-          ? parseInt(formData.localGovernmentId)
-          : null,
-        workingAddress: formData.workingAddress || null,
-        yearsOfExperience: formData.yearsOfExperience
-          ? parseInt(formData.yearsOfExperience)
-          : null,
-        bio: formData.bio || null,
-        skills: formData.skills
-          ? formData.skills.split(",").map((s) => s.trim())
-          : [],
-        artisanServices: selectedServices.map((s) => ({
-          serviceId: s.serviceId,
-          experience: s.experience || null,
-        })),
-      };
+const handleSave = async () => {
+  setIsLoading(true);
+  try {
+    const payload = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      phone: formData.phone,
+      gender: formData.gender || null,
+      dateOfBirth: formData.dateOfBirth || null,
+      address: formData.address || null,
+      // city: formData.city || null,
+      stateId: formData.stateId ? parseInt(formData.stateId) : null,
+      localGovernmentId: formData.localGovernmentId
+        ? parseInt(formData.localGovernmentId)
+        : null,
+      workingAddress: formData.workingAddress || null,
+      yearsOfExperience: formData.yearsOfExperience
+        ? parseInt(formData.yearsOfExperience)
+        : null,
+      bio: formData.bio || null,
+      skills: formData.skills
+        ? formData.skills.split(",").map((s) => s.trim())
+        : [],
+      artisanServices: selectedServices.map((s) => ({
+        serviceId: s.serviceId,
+        experience: s.experience || null,
+      })),
+    };
 
-      const response = await fetch("/api/artisan/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+    const response = await fetch("/api/artisan/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-      if (response.ok) {
-        toast.success("Profile updated successfully");
-        setIsEditing(false);
-        router.refresh();
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update profile");
-      }
-    } catch (error: any) {
-      console.error("Profile update error:", error);
-      toast.error(error.message || "Failed to update profile");
-    } finally {
-      setIsLoading(false);
+    const responseData = await response.json() as { error?: string; success?: boolean };
+
+    if (response.ok) {
+      toast.success("Profile updated successfully");
+      setIsEditing(false);
+      router.refresh();
+    } else {
+      throw new Error(responseData.error || "Failed to update profile");
     }
-  };
+  } catch (error: any) {
+    console.error("Profile update error:", error);
+    toast.error(error.message || "Failed to update profile");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleAddService = async () => {
     if (!newService.serviceId) {
@@ -447,7 +447,7 @@ export default function ProfileClient({
               <p className="text-gray-900">{formData.address || "Not specified"}</p>
             )}
           </div>
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
             {isEditing ? (
               <input
@@ -460,7 +460,7 @@ export default function ProfileClient({
             ) : (
               <p className="text-gray-900">{formData.city || "Not specified"}</p>
             )}
-          </div>
+          </div> */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
             {isEditing ? (

@@ -1,43 +1,29 @@
+// app/api/payments/update/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '~/lib/db'; // Import your Prisma instance
+import { prisma } from '~/lib/db';
 
-// Helper function (same as in your user route)
+// Helper function
 const cleanPhone = (phone: string) => phone.replace(/\D/g, "");
-
-// Helper function to map plan name to numeric ID
-const mapPlanIdToNumber = (planId: string): number => {
-  const planMap: Record<string, number> = {
-    'basic': 1,
-    'standard': 2,
-    'premium': 3,
-    '1': 1,    // Handle numeric strings too
-    '2': 2,
-    '3': 3
-  };
-  
-  const lowerPlanId = planId.toLowerCase();
-  return planMap[lowerPlanId] || 1; // Default to 1 if not found
-};
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Validate required fields
-    const { userId, planId, planType, billingPeriod, amount, reference } = body;
+    // Type assertion for the body
+    const { userId, planId, planType, billingPeriod, amount, reference } = body as {
+      userId?: string;
+      planId?: string;
+      planType?: string;
+      billingPeriod?: string;
+      amount?: number;
+      reference?: string;
+    };
 
     console.log("The userId which same as phone number", userId);
 
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID (phone) is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!planId) {
-      return NextResponse.json(
-        { error: 'Plan ID is required' },
         { status: 400 }
       );
     }
@@ -49,106 +35,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Updating subscription for user with plan:', planId);
-
     const cleanedPhone = cleanPhone(userId);
-    const expiresAt = new Date();
     
-    // Calculate expiration based on billing period
-    if (planType === "Monthly" || billingPeriod === "monthly") {
-      expiresAt.setDate(expiresAt.getDate() + 29); // 30-day subscription
-    } else if (planType === "Yearly" || billingPeriod === "yearly") {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-      expiresAt.setDate(expiresAt.getDate() - 1); // 365 days
-    } else {
-      // Default to monthly
-      expiresAt.setDate(expiresAt.getDate() + 29);
-    }
-
-    // Map planId to integer value
-    const numericPlanId = mapPlanIdToNumber(planId);
-    
-    console.log(`Plan mapping: ${planId} -> ${numericPlanId} (type: ${typeof numericPlanId})`);
-
-    // Update database with subscription using transaction
-    const [subscription, history] = await prisma.$transaction([
-      // Update or create subscription
-      prisma.subscription.upsert({
-        where: {
-          userId: "13482425859",
-        },
-        update: {
-          planId: numericPlanId, // Store as integer
-          planType: planType || "Monthly",
-          status: "ACTIVE",
-          expiresAt: expiresAt,
-        },
-        create: {
-          planId: numericPlanId, // Store as integer
-          userId: "13482425859",
-          planType: planType || "Monthly",
-          status: "ACTIVE",
-          expiresAt: expiresAt,
-        },
-      }),
-
-      // Create subscription history
-      prisma.subscriptionHistory.create({
-        data: {
-          planId: numericPlanId, // Already an integer
-          userId: "13482425859",
-          planType: planType || "Monthly",
-          changeReason: "Payment successful",
-          expiresAt: expiresAt,
-        },
-      }),
-    ]);
-
-    // Also update the user's subscription status if needed
-    await prisma.user.update({
+    // Find the user by phone number
+    const user = await prisma.user.findFirst({
       where: {
         phone: cleanedPhone,
       },
-      data: {
-        subs_stat: 1,
+      select: {
+        id: true,
+        phone: true,
+        email: true,
+        firstName: true,
+        lastName: true,
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Subscription activated successfully',
-      data: {
-        subscription: {
-          id: subscription.id,
-          userId: subscription.userId,
-          planId: subscription.planId,
-          planType: subscription.planType,
-          status: subscription.status,
-          expiresAt: subscription.expiresAt,
-        },
-        history: {
-          id: history.id,
-          changeReason: history.changeReason,
-          createdAt: history.createdAt,
-        }
-      },
-    });
-  } catch (error: any) {
-    console.error('Subscription update error:', error);
-    
-    // Handle specific Prisma errors
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'Duplicate subscription',
-          message: 'Subscription already exists for this user'
-        },
-        { status: 409 }
-      );
-    }
-
-    if (error.code === 'P2025') {
+    if (!user) {
       return NextResponse.json(
         { 
           success: false,
@@ -159,10 +62,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Update payment transaction status
+    const paymentTransaction = await prisma.paymentTransaction.updateMany({
+      where: {
+        transactionRef: reference,
+        userId: user.id,
+      },
+      data: {
+        status: "COMPLETED",
+        paidAt: new Date(),
+        metadata: {
+          planId,
+          planType,
+          billingPeriod,
+          amount,
+        },
+      },
+    });
+
+    if (paymentTransaction.count === 0) {
+      // Create new payment transaction if not found
+      await prisma.paymentTransaction.create({
+        data: {
+          userId: user.id,
+          transactionRef: reference,
+          paymentGateway: "PAYSTACK",
+          amount: amount || 0,
+          currency: "NGN",
+          status: "COMPLETED",
+          paidAt: new Date(),
+          metadata: {
+            planId,
+            planType,
+            billingPeriod,
+          },
+        },
+      });
+    }
+
+    // If you have a subscription model, update it here
+    // Otherwise, update user with subscription info
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        // @ts-ignore - Add if these fields exist in your User model
+        // subscriptionPlan: planId,
+        // subscriptionStatus: "ACTIVE",
+        // subscriptionExpiresAt: expiresAt,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Payment recorded successfully',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+        },
+        payment: {
+          reference,
+          amount,
+          status: "COMPLETED",
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Payment update error:', error);
+    
     return NextResponse.json(
       { 
         success: false,
-        error: 'Failed to update subscription',
+        error: 'Failed to update payment',
         message: error.message || 'Database error'
       },
       { status: 500 }

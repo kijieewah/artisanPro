@@ -11,6 +11,23 @@ export default async function TrainingPage() {
     redirect("/auth/sign-in");
   }
 
+  // Fetch full user details
+  const fullUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      email: true,
+      phone: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    },
+  });
+
+  if (!fullUser) {
+    redirect("/auth/sign-in");
+  }
+
   // Fetch user with artisan profile
   const userWithProfile = await prisma.user.findUnique({
     where: { id: user.id },
@@ -36,17 +53,34 @@ export default async function TrainingPage() {
   }
 
   const artisanProfile = userWithProfile.artisanProfile;
-  const userServices = artisanProfile.artisanServices.map((as) => as.service);
+  
+  // Transform userServices - convert null to undefined
+  const userServicesRaw = artisanProfile.artisanServices.map((as) => as.service);
+  const transformedUserServices = userServicesRaw.map((service) => ({
+    id: service.id,
+    name: service.name,
+    description: service.description || undefined,
+    status: service.status,
+    industryId: service.industryId,
+    image: service.image || undefined,
+    createdAt: service.createdAt,
+    updatedAt: service.updatedAt,
+    industry: {
+      id: service.industry.id,
+      name: service.industry.name,
+      description: service.industry.description || undefined,
+      status: service.industry.status,
+    },
+  }));
+
+  const serviceIds = transformedUserServices.map((s) => s.id);
 
   // Fetch available courses based on artisan's services
   let courses: any[] = [];
   let recommendedCourses: any[] = [];
   let popularCourses: any[] = [];
 
-  if (userServices.length > 0) {
-    const serviceIds = userServices.map((s) => s.id);
-    
-    // Fetch courses matching artisan's services
+  if (serviceIds.length > 0) {
     courses = await prisma.course.findMany({
       where: {
         status: "PUBLISHED",
@@ -63,16 +97,7 @@ export default async function TrainingPage() {
         ],
       },
       include: {
-        partner: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
+        partner: true,
         primaryService: {
           include: {
             industry: true,
@@ -96,8 +121,7 @@ export default async function TrainingPage() {
       orderBy: { createdAt: "desc" },
     });
 
-    // Get recommended courses (based on primary service)
-    const primaryServiceId = userServices[0]?.id;
+    const primaryServiceId = serviceIds[0];
     if (primaryServiceId) {
       recommendedCourses = await prisma.course.findMany({
         where: {
@@ -106,16 +130,7 @@ export default async function TrainingPage() {
           enrollmentDeadline: { gt: new Date() },
         },
         include: {
-          partner: {
-            include: {
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
+          partner: true,
           primaryService: {
             include: {
               industry: true,
@@ -141,23 +156,13 @@ export default async function TrainingPage() {
       });
     }
 
-    // Get popular courses (most enrolled)
     popularCourses = await prisma.course.findMany({
       where: {
         status: "PUBLISHED",
         enrollmentDeadline: { gt: new Date() },
       },
       include: {
-        partner: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
+        partner: true,
         primaryService: {
           include: {
             industry: true,
@@ -182,23 +187,13 @@ export default async function TrainingPage() {
       take: 6,
     });
   } else {
-    // If no services selected, show all published courses
     courses = await prisma.course.findMany({
       where: {
         status: "PUBLISHED",
         enrollmentDeadline: { gt: new Date() },
       },
       include: {
-        partner: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
+        partner: true,
         primaryService: {
           include: {
             industry: true,
@@ -223,8 +218,8 @@ export default async function TrainingPage() {
     });
   }
 
-  // Fetch all services for filtering
-  const allServices = await prisma.service.findMany({
+  // Fetch all services for filtering with industry relation
+  const allServicesRaw = await prisma.service.findMany({
     where: { status: true },
     include: {
       industry: true,
@@ -232,127 +227,126 @@ export default async function TrainingPage() {
     orderBy: { name: "asc" },
   });
 
-  // Fetch all industries for filtering
-  const industries = await prisma.industry.findMany({
+  // Transform allServices for client - convert null to undefined
+  const transformedAllServices = allServicesRaw.map((service) => ({
+    id: service.id,
+    name: service.name,
+    description: service.description || undefined,
+    status: service.status,
+    industryId: service.industryId,
+    image: service.image || undefined,
+    createdAt: service.createdAt,
+    updatedAt: service.updatedAt,
+    industry: {
+      id: service.industry.id,
+      name: service.industry.name,
+      description: service.industry.description || undefined,
+      status: service.industry.status,
+    },
+  }));
+
+  // Fetch all industries for filtering with proper relations
+  const industriesRaw = await prisma.industries.findMany({
     where: { status: true },
     include: {
-      services: true,
+      services: {
+        include: {
+          industry: true,
+        },
+      },
     },
     orderBy: { name: "asc" },
   });
 
-  // Transform courses for client
-  const transformedCourses = courses.map((course) => ({
+  // Transform industries for client - convert null to undefined
+  const transformedIndustries = industriesRaw.map((industry) => ({
+    id: industry.id,
+    name: industry.name,
+    description: industry.description || undefined,
+    status: industry.status,
+    createdAt: industry.createdAt,
+    updatedAt: industry.updatedAt,
+    services: industry.services.map((service) => ({
+      id: service.id,
+      name: service.name,
+      description: service.description || undefined,
+      status: service.status,
+      industryId: service.industryId,
+      image: service.image || undefined,
+      createdAt: service.createdAt,
+      updatedAt: service.updatedAt,
+      industry: {
+        id: industry.id,
+        name: industry.name,
+        description: industry.description || undefined,
+        status: industry.status,
+      },
+    })),
+  }));
+
+  // Helper function to transform course data - convert null to undefined
+  const transformCourse = (course: any) => ({
     id: course.id,
     name: course.name,
     code: course.code,
     description: course.description,
-    syllabus: course.syllabus,
+    syllabus: course.syllabus || undefined,
     durationHours: course.durationHours,
-    durationDays: course.durationDays,
+    durationDays: course.durationDays || undefined,
     cost: course.cost,
     currency: course.currency,
     deliveryMode: course.deliveryMode,
-    startDate: course.startDate,
-    endDate: course.endDate,
-    enrollmentDeadline: course.enrollmentDeadline,
-    maxStudents: course.maxStudents,
+    startDate: course.startDate || undefined,
+    endDate: course.endDate || undefined,
+    enrollmentDeadline: course.enrollmentDeadline || undefined,
+    maxStudents: course.maxStudents || undefined,
     currentEnrollment: course.currentEnrollment,
-    thumbnailUrl: course.thumbnailUrl,
-    rating: course.rating,
+    thumbnailUrl: course.thumbnailUrl || undefined,
+    rating: course.rating ? Number(course.rating) : undefined,
     reviewCount: course.reviewCount,
     partner: {
       id: course.partner.id,
       businessName: course.partner.businessName,
-      logoUrl: course.partner.logoUrl,
-      partnerType: course.partner.partnerType,
+      logoUrl: course.partner.logoUrl || undefined,
+      partnerType: course.partner.partnerType || undefined,
     },
     primaryService: {
       id: course.primaryService.id,
       name: course.primaryService.name,
-      industryName: course.primaryService.industry?.name,
+      industryName: course.primaryService.industry?.name || undefined,
     },
-    otherServices: course.courseServices.map((cs: any) => ({
+    otherServices: (course.courseServices || []).map((cs: any) => ({
       id: cs.service.id,
       name: cs.service.name,
-      industryName: cs.service.industry?.name,
+      industryName: cs.service.industry?.name || undefined,
     })),
     enrollmentCount: course._count?.enrollments || 0,
-  }));
+  });
 
-  const transformedRecommended = recommendedCourses.map((course) => ({
-    id: course.id,
-    name: course.name,
-    code: course.code,
-    description: course.description,
-    durationHours: course.durationHours,
-    durationDays: course.durationDays,
-    cost: course.cost,
-    currency: course.currency,
-    deliveryMode: course.deliveryMode,
-    startDate: course.startDate,
-    enrollmentDeadline: course.enrollmentDeadline,
-    thumbnailUrl: course.thumbnailUrl,
-    rating: course.rating,
-    reviewCount: course.reviewCount,
-    partner: {
-      id: course.partner.id,
-      businessName: course.partner.businessName,
-      logoUrl: course.partner.logoUrl,
-    },
-    primaryService: {
-      id: course.primaryService.id,
-      name: course.primaryService.name,
-    },
-    enrollmentCount: course._count?.enrollments || 0,
-  }));
-
-  const transformedPopular = popularCourses.map((course) => ({
-    id: course.id,
-    name: course.name,
-    code: course.code,
-    description: course.description,
-    durationHours: course.durationHours,
-    durationDays: course.durationDays,
-    cost: course.cost,
-    currency: course.currency,
-    deliveryMode: course.deliveryMode,
-    startDate: course.startDate,
-    enrollmentDeadline: course.enrollmentDeadline,
-    thumbnailUrl: course.thumbnailUrl,
-    rating: course.rating,
-    reviewCount: course.reviewCount,
-    partner: {
-      id: course.partner.id,
-      businessName: course.partner.businessName,
-      logoUrl: course.partner.logoUrl,
-    },
-    primaryService: {
-      id: course.primaryService.id,
-      name: course.primaryService.name,
-    },
-    enrollmentCount: course._count?.enrollments || 0,
-  }));
+  // Transform all courses using the helper function
+  const transformedCourses = courses.map(transformCourse);
+  const transformedRecommended = recommendedCourses.map(transformCourse);
+  const transformedPopular = popularCourses.map(transformCourse);
 
   const userData = {
-    id: userWithProfile.id,
-    email: userWithProfile.email,
-    phone: userWithProfile.phone || "",
-    firstName: userWithProfile.firstName,
-    lastName: userWithProfile.lastName,
-    role: userWithProfile.role,
+    id: fullUser.id,
+    email: fullUser.email,
+    phone: fullUser.phone || "",
+    firstName: fullUser.firstName,
+    lastName: fullUser.lastName,
+    role: fullUser.role,
   };
 
   return (
     <TrainingClient
       user={userData}
       artisanProfile={artisanProfile}
-      userServices={userServices}
+      userServices={transformedUserServices}
       courses={transformedCourses}
       recommendedCourses={transformedRecommended}
       popularCourses={transformedPopular}
-      allServices={allServices}
-      industries={industries}
+      allServices={transformedAllServices}
+      industries={transformedIndustries}
     />
   );
 }

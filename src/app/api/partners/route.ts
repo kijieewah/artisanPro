@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch training partners (partners that offer training related to this service)
-    const trainingPartners = await prisma.partnerProfile.findMany({
+    // Fetch all active partners related to this service or industry
+    const partners = await prisma.partnerProfile.findMany({
       where: {
         AND: [
           {
@@ -90,70 +90,27 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Fetch certification partners
-    const certificationPartners = await prisma.partnerProfile.findMany({
-      where: {
-        AND: [
-          {
-            OR: [
-              {
-                partnerServices: {
-                  some: {
-                    serviceId: serviceIdNum,
-                  },
-                },
-              },
-              {
-                partnerIndustries: {
-                  some: {
-                    industryId: service.industryId,
-                  },
-                },
-              },
-            ],
-          },
-          {
-            status: "ACTIVE",
-          },
-          {
-            partnerType: {
-              in: ["CERTIFICATION_BODY", "INDUSTRY_ASSOCIATION"],
-            },
-          },
-        ],
-      },
-      include: {
-        partnerServices: {
-          include: {
-            service: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-              },
-            },
-          },
-        },
-        partnerIndustries: {
-          include: {
-            industry: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    // If you need to differentiate between training and certification partners,
+    // you can filter by business name patterns
+    const trainingPartners = partners.filter(partner => 
+      !partner.businessName.toLowerCase().includes("certification") &&
+      !partner.businessName.toLowerCase().includes("accreditation") &&
+      !partner.businessName.toLowerCase().includes("board") &&
+      !partner.businessName.toLowerCase().includes("council")
+    );
+    
+    const certificationPartners = partners.filter(partner =>
+      partner.businessName.toLowerCase().includes("certification") ||
+      partner.businessName.toLowerCase().includes("accreditation") ||
+      partner.businessName.toLowerCase().includes("board") ||
+      partner.businessName.toLowerCase().includes("council")
+    );
 
     return NextResponse.json({
       success: true,
       trainingPartners,
       certificationPartners,
+      allPartners: partners,
     });
   } catch (error) {
     console.error("Error fetching partners:", error);

@@ -5,6 +5,33 @@ import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from './db';
 
+// Extend the built-in session types
+declare module "next-auth" {
+  interface User {
+    id: string;
+    phone: string;
+    role: string;
+  }
+  
+  interface Session {
+    user: {
+      id: string;
+      email: string;
+      name?: string | null;
+      phone: string;
+      role: string;
+    }
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    phone: string;
+    role: string;
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   callbacks: {

@@ -26,6 +26,22 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
     redirect("/dashboard");
   }
 
+  // Fetch full user details from database
+  const fullUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      email: true,
+      phone: true,
+      firstName: true,
+      lastName: true,
+    },
+  });
+
+  if (!fullUser) {
+    redirect("/auth/sign-in");
+  }
+
   // Fetch application details
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -54,9 +70,9 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
   }
 
   const userData = {
-    name: `${user.firstName} ${user.lastName}`,
-    email: user.email,
-    phone: user.phone,
+    name: `${fullUser.firstName} ${fullUser.lastName}`,
+    email: fullUser.email,
+    phone: fullUser.phone,
   };
 
   const paymentAmount = amount ? parseInt(amount) : 5000; // Default ₦5,000

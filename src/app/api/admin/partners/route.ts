@@ -1,19 +1,11 @@
 // app/api/admin/partners/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "~/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "~/lib/auth";
+import { AccountStatus } from "@prisma/client";
 
 // GET - Fetch all partners with pagination and search
 export async function GET(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    
-    // Check if user is authenticated and is admin/super_admin
-    // if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -21,7 +13,6 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause for search
     const where = search ? {
       OR: [
         { businessName: { contains: search, mode: 'insensitive' } },
@@ -62,16 +53,13 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
       prisma.partnerProfile.count({ where }),
     ]);
 
-    // Transform the data for easier consumption
     const formattedPartners = partners.map(partner => ({
       id: partner.id,
       userId: partner.userId,
@@ -134,17 +122,14 @@ export async function GET(request: NextRequest) {
 // PATCH - Update partner status (approve/reject)
 export async function PATCH(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    
-    // Check if user is authenticated and is admin/super_admin
-    // if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const partnerId = searchParams.get("id");
     const body = await request.json();
-    const { status, rejectionReason } = body;
+    
+    const { status, rejectionReason } = body as {
+      status?: AccountStatus;
+      rejectionReason?: string;
+    };
 
     if (!partnerId) {
       return NextResponse.json(
@@ -153,14 +138,28 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Update partner status
+    if (!status) {
+      return NextResponse.json(
+        { error: "Status is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate status is a valid AccountStatus enum value
+    if (!Object.values(AccountStatus).includes(status)) {
+      return NextResponse.json(
+        { error: "Invalid status value. Must be ACTIVE, INACTIVE, PENDING, or REJECTED" },
+        { status: 400 }
+      );
+    }
+
     const updatedPartner = await prisma.partnerProfile.update({
       where: { id: partnerId },
       data: {
         status: status,
         rejectionReason: rejectionReason || null,
-        approvedAt: status === "ACTIVE" ? new Date() : null,
-        approvedBy: status === "ACTIVE" ? "ADMIN" : null,
+        approvedAt: status === AccountStatus.ACTIVE ? new Date() : null,
+        approvedBy: status === AccountStatus.ACTIVE ? "ADMIN" : null,
       },
       include: {
         user: {
@@ -187,7 +186,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       success: true,
       partner: updatedPartner,
-      message: status === "ACTIVE" ? "Partner approved successfully" : "Partner rejected successfully",
+      message: status === AccountStatus.ACTIVE ? "Partner approved successfully" : "Partner rejected successfully",
     });
   } catch (error) {
     console.error("Error updating partner:", error);
@@ -201,13 +200,6 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Delete a partner
 export async function DELETE(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions);
-    
-    // Check if user is authenticated and is admin/super_admin
-    // if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     const { searchParams } = new URL(request.url);
     const partnerId = searchParams.get("id");
 
@@ -218,7 +210,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete partner (this will cascade delete related records)
     await prisma.partnerProfile.delete({
       where: { id: partnerId },
     });

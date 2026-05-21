@@ -49,13 +49,14 @@ interface UserData {
   role: string;
 }
 
+// In the ArtisanProfile interface, make sure city is optional
 interface ArtisanProfile {
   id: string;
   userId: string;
   gender: string;
   dateOfBirth: string;
   address: string;
-  city: string;
+  city?: string; // Make optional
   state: { name: string };
   localGovernment: { name: string };
   workingAddress: string;
@@ -160,6 +161,9 @@ interface DashboardClientProps {
 // ============================================
 // Training & Certification Partners Modal
 // ============================================
+// ============================================
+// Training & Certification Partners Modal
+// ============================================
 
 function TrainingPartnersModal({ 
   isOpen, 
@@ -187,10 +191,19 @@ function TrainingPartnersModal({
     setLoading(true);
     try {
       const response = await fetch(`/api/artisan/partners?serviceId=${serviceId}`);
-      const data = await response.json();
+      const data = await response.json() as {
+        success: boolean;
+        trainingPartners?: Partner[];
+        certificationPartners?: Partner[];
+        error?: string;
+      };
+      
       if (data.success) {
         setTrainingPartners(data.trainingPartners || []);
         setCertificationPartners(data.certificationPartners || []);
+      } else {
+        console.error("Failed to fetch partners:", data.error);
+        toast.error(data.error || "Failed to load partners");
       }
     } catch (error) {
       console.error("Error fetching partners:", error);
@@ -226,6 +239,15 @@ function TrainingPartnersModal({
     window.open(website, '_blank');
   };
 
+  // Add missing Globe icon if not already imported
+  const Globe = (props: any) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  );
+
   const PartnerCard = ({ partner, type }: { partner: Partner; type: "training" | "certification" }) => (
     <div className="border rounded-lg p-4 hover:shadow-md transition-all bg-white">
       <div className="flex items-start gap-4">
@@ -249,12 +271,12 @@ function TrainingPartnersModal({
           </h4>
           
           <div className="flex flex-wrap gap-1 mt-2">
-            {partner.partnerServices.slice(0, 3).map((ps) => (
+            {partner.partnerServices?.slice(0, 3).map((ps) => (
               <span key={ps.service.id} className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
                 {ps.service.name}
               </span>
             ))}
-            {partner.partnerServices.length > 3 && (
+            {partner.partnerServices && partner.partnerServices.length > 3 && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
                 +{partner.partnerServices.length - 3}
               </span>
@@ -422,6 +444,9 @@ function TrainingPartnersModal({
 // ============================================
 // Application & Verification Component
 // ============================================
+// ============================================
+// Application & Verification Component
+// ============================================
 
 function ApplicationVerificationSection({ 
   application, 
@@ -467,7 +492,11 @@ function ApplicationVerificationSection({
         }),
       });
       
-      const data = await response.json();
+      const data = await response.json() as {
+        success?: boolean;
+        error?: string;
+        application?: Application;
+      };
       
       if (response.ok) {
         toast.success("Application submitted successfully! Our team will review your documents.");
@@ -480,7 +509,7 @@ function ApplicationVerificationSection({
       }
     } catch (error) {
       console.error("Application error:", error);
-      toast.error("Failed to submit application. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to submit application. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -577,7 +606,7 @@ function ApplicationVerificationSection({
     );
   }
 
-  // Show application form if no application exists or status is DRAFT
+  // Rest of the component remains the same...
   return (
     <div className="rounded-lg border bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 mb-6">
       <div className="flex items-center gap-3 mb-4">
@@ -950,57 +979,57 @@ export default function DashboardClient({
     setUploadedDocs(newUploadedDocs);
   }, [requirementsStatus]);
 
-  const handleUploadRequirement = async (reqId: number) => {
-    setUploadingReq(reqId);
+const handleUploadRequirement = async (reqId: number) => {
+  setUploadingReq(reqId);
+  
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,application/pdf,.doc,.docx';
+  
+  input.onchange = async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) {
+      setUploadingReq(null);
+      return;
+    }
     
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,application/pdf,.doc,.docx';
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB');
+      setUploadingReq(null);
+      return;
+    }
     
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) {
-        setUploadingReq(null);
-        return;
-      }
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('artisanId', artisanProfile.id);
+      formData.append('serviceId', currentService?.id.toString() || '');
+      formData.append('requirementId', reqId.toString());
       
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size must be less than 10MB');
-        setUploadingReq(null);
-        return;
-      }
+      const response = await fetch('/api/artisan/upload-requirement', {
+        method: 'POST',
+        body: formData,
+      });
       
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('artisanId', artisanProfile.id);
-        formData.append('serviceId', currentService?.id.toString() || '');
-        formData.append('requirementId', reqId.toString());
-        
-        const response = await fetch('/api/artisan/upload-requirement', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (response.ok) {
-          toast.success(`${requirementsStatus.find(r => r.id === reqId)?.name} uploaded successfully!`);
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Upload failed');
-        }
-      } catch (error) {
-        console.error('Upload error:', error);
-        toast.error('Failed to upload document. Please try again.');
-      } finally {
-        setUploadingReq(null);
+      if (response.ok) {
+        toast.success(`${requirementsStatus.find(r => r.id === reqId)?.name} uploaded successfully!`);
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        const errorData = await response.json() as { error?: string };
+        throw new Error(errorData.error || 'Upload failed');
       }
-    };
-    
-    input.click();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload document. Please try again.');
+    } finally {
+      setUploadingReq(null);
+    }
   };
+  
+  input.click();
+};
 
   const handleViewDocument = (requirement: Requirement) => {
     if (requirement.upload?.documentUrl) {

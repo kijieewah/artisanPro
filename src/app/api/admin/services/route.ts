@@ -1,6 +1,24 @@
-// app/api/admin/services/route.ts (UPDATED)
+// app/api/admin/services/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "~/lib/db";
+import { z } from "zod";
+
+// Define validation schemas
+const createServiceSchema = z.object({
+  industryId: z.number().min(1, "Industry ID is required"),
+  name: z.string().min(1, "Service name is required"),
+  description: z.string().optional().default(""),
+  image: z.string().optional().default(""),
+  status: z.boolean().optional().default(true),
+});
+
+const updateServiceSchema = z.object({
+  industryId: z.number().optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  image: z.string().optional(),
+  status: z.boolean().optional(),
+});
 
 // GET - Fetch all services with pagination and search
 export async function GET(request: NextRequest) {
@@ -12,7 +30,6 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause for search
     const where = search ? {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
@@ -21,7 +38,6 @@ export async function GET(request: NextRequest) {
       ],
     } : {};
 
-    // Get services with count
     const [services, total] = await Promise.all([
       prisma.service.findMany({
         where,
@@ -43,16 +59,13 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
       prisma.service.count({ where }),
     ]);
 
-    // Add _count to each service for display
     const servicesWithCount = services.map(service => ({
       ...service,
       _count: {
@@ -80,21 +93,21 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { industryId, name, description, image, status } = body;
-
-    if (!industryId) {
+    
+    // Validate with Zod
+    const validation = createServiceSchema.safeParse(body);
+    
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Industry ID is required" },
+        { 
+          error: "Invalid request data", 
+          details: validation.error.errors 
+        },
         { status: 400 }
       );
     }
 
-    if (!name) {
-      return NextResponse.json(
-        { error: "Service name is required" },
-        { status: 400 }
-      );
-    }
+    const { industryId, name, description, image, status } = validation.data;
 
     // Verify industry exists
     const industry = await prisma.industries.findUnique({
@@ -114,7 +127,7 @@ export async function POST(request: NextRequest) {
         name,
         description: description || "",
         image: image || "",
-        status: status !== undefined ? status : true,
+        status,
       },
       include: {
         industry: {
@@ -150,17 +163,32 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { industryId, name, description, image, status } = body;
+    // Validate with Zod
+    const validation = updateServiceSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return NextResponse.json(
+        { 
+          error: "Invalid request data", 
+          details: validation.error.errors 
+        },
+        { status: 400 }
+      );
+    }
+
+    const updateData = validation.data;
+
+    // Only update if there's data to update
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 }
+      );
+    }
 
     const service = await prisma.service.update({
       where: { id: parseInt(id) },
-      data: {
-        industryId: industryId || undefined,
-        name: name || undefined,
-        description: description !== undefined ? description : undefined,
-        image: image !== undefined ? image : undefined,
-        status: status !== undefined ? status : undefined,
-      },
+      data: updateData,
       include: {
         industry: {
           select: {

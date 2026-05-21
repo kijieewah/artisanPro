@@ -1,4 +1,4 @@
-// app/auth/sign-up/page.client.tsx
+// app/auth/sign-up/[[...signup]]/page.client.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -65,6 +65,31 @@ interface Service {
   requirements: Requirement[];
 }
 
+// API Response Types
+interface StatesResponse {
+  success: boolean;
+  data: State[];
+  error?: string;
+}
+
+interface LGAsResponse {
+  success: boolean;
+  data: LocalGovernment[];
+  error?: string;
+}
+
+interface IndustriesResponse {
+  success: boolean;
+  data: Industry[];
+  error?: string;
+}
+
+interface ServicesResponse {
+  success: boolean;
+  data: Service[];
+  error?: string;
+}
+
 export function SignUpClient() {
   const router = useRouter();
   const [step, setStep] = useState<"location" | "personal" | "professional">("location");
@@ -109,7 +134,7 @@ export function SignUpClient() {
     const fetchStates = async () => {
       try {
         const response = await fetch("/api/states");
-        const data = await response.json();
+        const data = await response.json() as StatesResponse;
         if (data.success) {
           setStates(data.data);
         }
@@ -121,7 +146,7 @@ export function SignUpClient() {
     const fetchIndustries = async () => {
       try {
         const response = await fetch("/api/industries");
-        const data = await response.json();
+        const data = await response.json() as IndustriesResponse;
         if (data.success) {
           setIndustries(data.data);
         }
@@ -140,7 +165,7 @@ export function SignUpClient() {
       if (selectedState) {
         try {
           const response = await fetch(`/api/states/${selectedState}/lgas`);
-          const data = await response.json();
+          const data = await response.json() as LGAsResponse;
           if (data.success) {
             setLgas(data.data);
           }
@@ -161,7 +186,7 @@ export function SignUpClient() {
       if (selectedIndustry) {
         try {
           const response = await fetch(`/api/industries/${selectedIndustry}/services`);
-          const data = await response.json();
+          const data = await response.json() as ServicesResponse;
           if (data.success) {
             setServices(data.data);
           }
@@ -335,7 +360,7 @@ export function SignUpClient() {
         body: submitData,
       });
 
-      const data = await response.json();
+      const data = await response.json() as { error?: string; success?: boolean };
 
       if (!response.ok) {
         throw new Error(data.error || "Registration failed");
@@ -440,7 +465,7 @@ export function SignUpClient() {
                     <select
                       value={selectedState}
                       onChange={(e) => handleStateChange(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                      className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                       required
                     >
                       <option value="">Select your state</option>
@@ -458,7 +483,7 @@ export function SignUpClient() {
                       <select
                         value={selectedLGA}
                         onChange={(e) => setSelectedLGA(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       >
                         <option value="">Select LGA</option>
@@ -493,7 +518,7 @@ export function SignUpClient() {
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleChange}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       />
                     </div>
@@ -506,7 +531,7 @@ export function SignUpClient() {
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleChange}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       />
                     </div>
@@ -523,7 +548,7 @@ export function SignUpClient() {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       />
                     </div>
@@ -541,7 +566,7 @@ export function SignUpClient() {
                         value={formData.phone}
                         onChange={handleChange}
                         placeholder="+234 XXX XXX XXXX"
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       />
                     </div>
@@ -558,7 +583,7 @@ export function SignUpClient() {
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       />
                       <button
@@ -582,7 +607,7 @@ export function SignUpClient() {
                         name="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       />
                     </div>
@@ -621,7 +646,7 @@ export function SignUpClient() {
                         name="dateOfBirth"
                         value={formData.dateOfBirth}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                       />
                     </div>
                   </div>
@@ -638,7 +663,7 @@ export function SignUpClient() {
                     <select
                       value={selectedIndustry}
                       onChange={(e) => handleIndustryChange(e.target.value)}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                       required
                     >
                       <option value="">Select Sector</option>
@@ -656,7 +681,7 @@ export function SignUpClient() {
                       <select
                         value={selectedService}
                         onChange={(e) => handleServiceChange(e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       >
                         <option value="">Select Skill /Trade</option>
@@ -677,7 +702,7 @@ export function SignUpClient() {
                       value={formData.yearsOfExperience}
                       onChange={handleChange}
                       placeholder="e.g., 5"
-                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                       required
                     />
                   </div>
@@ -694,7 +719,7 @@ export function SignUpClient() {
                         onChange={handleChange}
                         rows={2}
                         placeholder="Your business address or workshop location"
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                         required
                       />
                     </div>
@@ -711,7 +736,7 @@ export function SignUpClient() {
                         value={formData.city}
                         onChange={handleChange}
                         placeholder="City"
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                       />
                     </div>
                     <div>
@@ -724,7 +749,7 @@ export function SignUpClient() {
                         value={formData.postalCode}
                         onChange={handleChange}
                         placeholder="Postal code"
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                       />
                     </div>
                   </div>
@@ -739,7 +764,7 @@ export function SignUpClient() {
                       onChange={handleChange}
                       rows={3}
                       placeholder="Tell us about your experience, specialties, and what makes you unique..."
-                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                     />
                   </div>
 
@@ -754,7 +779,7 @@ export function SignUpClient() {
                         onChange={(e) => setFormData(prev => ({ ...prev, newSkill: e.target.value }))}
                         onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSkill())}
                         placeholder="e.g., Certified Electrician, OSHA Certified"
-                        className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all"
+                        className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 transition-all focus:ring-[#16507b] focus:border-[#16507b]"
                       />
                       <button
                         type="button"
