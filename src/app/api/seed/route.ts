@@ -207,15 +207,15 @@ export async function GET() {
       throw new Error("Prisma client is not initialized");
     }
 
-    // 1. Seed Industries
+    // 1. Seed Industries (using 'industries' model - PLURAL)
     console.log("📦 Seeding industries...");
     for (const industry of industries) {
-      const existing = await prisma.industry.findUnique({
+      const existing = await prisma.industries.findUnique({
         where: { id: industry.id },
       });
       
       if (!existing) {
-        await prisma.industry.create({
+        await prisma.industries.create({
           data: {
             id: industry.id,
             name: industry.name,
