@@ -17,9 +17,7 @@
     "tests": "bun test ./.tests",
    "postinstall": "prisma generate"
   },
-    "prisma": {
-      "seed": "node --loader ts-node/esm prisma/seed.ts"
-  },
+    
   "dependencies": {
     "@headlessui/react": "^2.2.7",
     "@next-auth/prisma-adapter": "^1.0.7",

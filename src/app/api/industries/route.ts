@@ -4,7 +4,7 @@ import { prisma } from "~/lib/db";
 
 export async function GET() {
   try {
-    const industries = await prisma.industry.findMany({
+    const industries = await prisma.industries.findMany({
       where: {
         status: true,
       },

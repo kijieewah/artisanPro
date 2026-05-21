@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify industry exists
-    const industry = await prisma.industry.findUnique({
+    const industry = await prisma.industries.findUnique({
       where: { id: industryId },
     });
 

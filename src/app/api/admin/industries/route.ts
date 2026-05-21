@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Get industries with count
     const [industries, total] = await Promise.all([
-      prisma.industry.findMany({
+      prisma.industries.findMany({
         where,
         include: {
           services: {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      prisma.industry.count({ where }),
+      prisma.industries.count({ where }),
     ]);
 
     // Add _count to each industry for display
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const industry = await prisma.industry.create({
+    const industry = await prisma.industries.create({
       data: {
         name,
         description: description || "",
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
 
     const { name, description, status } = body;
 
-    const industry = await prisma.industry.update({
+    const industry = await prisma.industries.update({
       where: { id: parseInt(id) },
       data: {
         name: name || undefined,
@@ -137,7 +137,7 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ industry });
+    return NextResponse.json({ industries });
   } catch (error) {
     console.error("Error updating industry:", error);
     return NextResponse.json(
@@ -177,7 +177,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.industry.delete({
+    await prisma.industries.delete({
       where: { id: parseInt(id) },
     });
 

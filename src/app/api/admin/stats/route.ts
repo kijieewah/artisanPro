@@ -23,7 +23,7 @@ export async function GET() {
       prisma.user.count(),
       prisma.artisanProfile.count(),
       prisma.partnerProfile.count(),
-      prisma.industry.count(),
+      prisma.industries.count(),
       prisma.service.count(),
       prisma.requirement.count(),
     ]);
