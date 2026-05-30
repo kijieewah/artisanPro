@@ -11,9 +11,8 @@
     "latest": "bun update --latest && bun check",
     "check": "tsc --noEmit && eslint --cache --fix . && biome check --fix --unsafe . && knip",
     "tests": "bun test ./.tests",
-   "postinstall": "prisma generate"
+    "postinstall": "prisma generate"
   },
-    
   "dependencies": {
     "@headlessui/react": "^2.2.7",
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -56,6 +55,7 @@
     "fs.promises": "^0.1.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.508.0",
+    "mysql2": "^3.22.4",
     "next": "15.3.6",
     "next-auth": "^4.24.11",
     "next-themes": "^0.4.6",
