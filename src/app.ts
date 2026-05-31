@@ -1,9 +1,9 @@
 export const SEO_CONFIG = {
   description:
-    "With Qreta, your business deserves more than word-of-mouth. With Qreta, one scan connects customers to everything you sell instantly.",
-  fullName: "Qreta",
-  name: "Qreta",
-  slogan: "Your Business Just a Scan Away",
+    "Nigeria's premier platform for artisan certification, skill development, and government-licensed credentials.",
+  fullName: "ArtisanPro",
+  name: "ArtisanPro",
+  slogan: "platform for artisan certification",
 };
 
 export const SYSTEM_CONFIG = {
