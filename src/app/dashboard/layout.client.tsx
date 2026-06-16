@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "~/ui/components/header";
 import Sidebar from "~/ui/components/sidebar/sidebar";
+// import CartDrawer from "~/components/cart/CartDrawer";
+import CartDrawer from "~/ui/components/cart/CartDrawer";
 
 interface UserData {
   id: string;
@@ -79,6 +81,9 @@ export default function DashboardLayoutClient({
           {children}
         </main>
       </div>
+
+      {/* Cart Drawer - Visible across all dashboard pages */}
+      <CartDrawer />
     </div>
   );
 }

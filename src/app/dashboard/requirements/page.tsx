@@ -16,10 +16,29 @@ export default async function RequirementsPage({ searchParams }: PageProps) {
   }
 
   const resolvedParams = await searchParams;
-  const { serviceId } = resolvedParams;
+  let { serviceId } = resolvedParams;
 
+  // If no serviceId is provided, get the first service from artisan's services
   if (!serviceId) {
-    redirect("/dashboard");
+    // Get artisan profile with services
+    const artisanWithServices = await prisma.artisanProfile.findFirst({
+      where: { userId: user.id },
+      include: {
+        artisanServices: {
+          include: {
+            service: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (artisanWithServices?.artisanServices?.[0]?.service) {
+      serviceId = artisanWithServices.artisanServices[0].service.id.toString();
+    } else {
+      // If no service found, redirect to profile to select a service
+      redirect("/dashboard/profile?step=select-service");
+    }
   }
 
   // Fetch full user details from database

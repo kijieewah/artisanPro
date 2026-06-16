@@ -6,7 +6,7 @@ import { ShoppingCart, MessageSquare } from "lucide-react";
 import type * as React from "react";
 import { useState, useRef, useEffect } from "react";
 
-import { useCart } from "~/lib/hooks/use-cart";
+import { useCart } from "~/lib/hooks/useCart";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";

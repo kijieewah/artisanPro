@@ -1,3 +1,4 @@
+// app/dashboard/application/page.client.tsx
 "use client";
 
 import { useState } from "react";
@@ -23,10 +24,12 @@ import {
   FileCheck,
   Loader2,
   Search,
+  Info,
   Filter,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
 } from "lucide-react";
 
 const colors = {
@@ -75,6 +78,7 @@ interface Application {
   approvedAt?: Date;
   reviewedAt?: Date;
   rejectionReason?: string;
+  inCart?: boolean;
   service: {
     id: number;
     name: string;
@@ -87,11 +91,13 @@ interface Application {
 
 interface Stats {
   total: number;
+  draft: number;
   submitted: number;
   underReview: number;
   approved: number;
   rejected: number;
   pendingInfo: number;
+  inCart: number;
 }
 
 interface ApplicationClientProps {
@@ -120,6 +126,7 @@ export default function ApplicationClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
 
   const fullName = `${user.firstName} ${user.lastName}`;
 
@@ -140,12 +147,85 @@ export default function ApplicationClient({
     toast.success("Download started");
   };
 
-  const handleContinuePayment = (applicationId: string) => {
-    router.push(`/payment?applicationId=${applicationId}&amount=5000`);
+  const handleAddToCart = async (application: Application) => {
+    // Check if all mandatory requirements are met
+    const mandatoryRequirements = application.requirements.filter(r => r.type === "MANDATORY");
+    const allMandatoryMet = mandatoryRequirements.every(r => r.isMet);
+    
+    if (!allMandatoryMet) {
+      toast.error("Please upload all mandatory documents before adding to cart");
+      router.push("/dashboard/requirements");
+      return;
+    }
+
+    setAddingToCart(application.id);
+    try {
+      const response = await fetch("/api/artisan/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "CERTIFICATION_APPLICATION",
+          itemId: application.id,
+          quantity: 1,
+        }),
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(`${application.service.name} certification added to cart!`);
+        window.dispatchEvent(new Event("cartUpdated"));
+        router.refresh();
+      } else {
+        toast.error(data.error || "Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      toast.error("Failed to add to cart");
+    } finally {
+      setAddingToCart(null);
+    }
+  };
+
+  const handleRemoveFromCart = async (applicationId: string) => {
+    try {
+      // Find cart item
+      const cartResponse = await fetch("/api/artisan/cart");
+      const cartData = await cartResponse.json();
+      
+      if (cartData.success && cartData.cart?.items) {
+        const cartItem = cartData.cart.items.find(
+          (item: any) => item.itemId === applicationId && item.itemType === "CERTIFICATION_APPLICATION"
+        );
+        
+        if (cartItem) {
+          const response = await fetch(`/api/artisan/cart?itemId=${cartItem.id}`, {
+            method: "DELETE",
+          });
+          const data = await response.json();
+          
+          if (data.success) {
+            toast.success("Removed from cart");
+            window.dispatchEvent(new Event("cartUpdated"));
+            router.refresh();
+          } else {
+            toast.error(data.error || "Failed to remove from cart");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Remove from cart error:", error);
+      toast.error("Failed to remove from cart");
+    }
+  };
+
+  const handleGoToCart = () => {
+    window.dispatchEvent(new Event("openCartDrawer"));
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case "DRAFT":
+        return { icon: FileText, text: "Draft", color: "bg-gray-100 text-gray-700", borderColor: "border-gray-200" };
       case "SUBMITTED":
         return { icon: Clock, text: "Submitted", color: "bg-blue-100 text-blue-700", borderColor: "border-blue-200" };
       case "UNDER_REVIEW":
@@ -157,7 +237,7 @@ export default function ApplicationClient({
       case "PENDING_INFORMATION":
         return { icon: AlertCircle, text: "Pending Info", color: "bg-orange-100 text-orange-700", borderColor: "border-orange-200" };
       default:
-        return { icon: FileText, text: "Draft", color: "bg-gray-100 text-gray-700", borderColor: "border-gray-200" };
+        return { icon: FileText, text: status, color: "bg-gray-100 text-gray-700", borderColor: "border-gray-200" };
     }
   };
 
@@ -185,34 +265,48 @@ export default function ApplicationClient({
 
   const statsCards = [
     { title: "Total Applications", value: stats.total, icon: FileText, color: "blue" },
-    { title: "Submitted", value: stats.submitted, icon: Clock, color: "yellow" },
-    { title: "Under Review", value: stats.underReview, icon: RefreshCw, color: "orange" },
+    { title: "In Progress", value: stats.draft + stats.submitted + stats.underReview, icon: Clock, color: "yellow" },
     { title: "Approved", value: stats.approved, icon: CheckCircle, color: "green" },
-    { title: "Rejected", value: stats.rejected, icon: XCircle, color: "red" },
+    { title: "In Cart", value: stats.inCart, icon: ShoppingCart, color: "purple" },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Applications</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Track and manage your certification applications
+            Track and manage your certification applications. Add completed applications to cart for payment.
           </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-        >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleGoToCart}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-colors hover:opacity-90"
+            style={{ backgroundColor: colors.primary }}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Go to Cart
+            {stats.inCart > 0 && (
+              <span className="ml-1 bg-white text-xs rounded-full px-1.5 py-0.5" style={{ color: colors.primary }}>
+                {stats.inCart}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statsCards.map((stat, index) => (
           <div
             key={index}
@@ -230,6 +324,21 @@ export default function ApplicationClient({
           </div>
         ))}
       </div>
+
+      {/* Info Banner */}
+      {stats.draft > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-800 font-medium">Complete your applications</p>
+              <p className="text-sm text-blue-700">
+                You have {stats.draft} draft application(s). Complete the requirements and add to cart to proceed with certification.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -249,6 +358,7 @@ export default function ApplicationClient({
           className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="all">All Statuses</option>
+          <option value="DRAFT">Draft</option>
           <option value="SUBMITTED">Submitted</option>
           <option value="UNDER_REVIEW">Under Review</option>
           <option value="APPROVED">Approved</option>
@@ -265,7 +375,7 @@ export default function ApplicationClient({
           <p className="text-gray-500 max-w-md mx-auto">
             {searchQuery || statusFilter !== "all"
               ? "Try adjusting your search or filter criteria"
-              : "You haven't submitted any certification applications yet."}
+              : "You haven't created any certification applications yet."}
           </p>
           {!searchQuery && statusFilter === "all" && (
             <Link
@@ -284,6 +394,11 @@ export default function ApplicationClient({
             const paymentInfo = getPaymentStatusBadge(application.paymentStatus);
             const StatusIcon = statusInfo.icon;
             const PaymentIcon = paymentInfo.icon;
+            const isAdding = addingToCart === application.id;
+            const canAddToCart = application.status === "DRAFT" && !application.inCart;
+            const mandatoryRequirements = application.requirements.filter(r => r.type === "MANDATORY");
+            const allMandatoryMet = mandatoryRequirements.every(r => r.isMet);
+            const showAddToCart = canAddToCart && allMandatoryMet && application.completionScore === 100;
 
             return (
               <div
@@ -301,18 +416,26 @@ export default function ApplicationClient({
                         <StatusIcon className="h-3 w-3" />
                         {statusInfo.text}
                       </span>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${paymentInfo.color}`}
-                      >
-                        <PaymentIcon className="h-3 w-3" />
-                        {paymentInfo.text}
-                      </span>
+                      {application.paymentStatus !== "PENDING" && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${paymentInfo.color}`}
+                        >
+                          <PaymentIcon className="h-3 w-3" />
+                          {paymentInfo.text}
+                        </span>
+                      )}
+                      {application.inCart && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                          <ShoppingCart className="h-3 w-3" />
+                          In Cart
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 mt-1">
                       {application.service.name} • {application.service.industryName || "Artisan Service"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
                       onClick={() => handleViewDetails(application)}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 transition-colors"
@@ -320,6 +443,7 @@ export default function ApplicationClient({
                       <Eye className="h-4 w-4" />
                       View Details
                     </button>
+                    
                     {application.status === "APPROVED" && application.certificate && (
                       <button
                         onClick={() => handleDownloadCertificate(application.certificate!.id)}
@@ -329,13 +453,35 @@ export default function ApplicationClient({
                         Certificate
                       </button>
                     )}
-                    {application.paymentStatus === "PENDING" && (
+
+                    {showAddToCart && (
                       <button
-                        onClick={() => handleContinuePayment(application.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        onClick={() => handleAddToCart(application)}
+                        disabled={isAdding}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-white rounded-lg transition-colors hover:opacity-90 disabled:opacity-50"
+                        style={{ backgroundColor: colors.primary }}
                       >
-                        <CreditCard className="h-4 w-4" />
-                        Complete Payment
+                        {isAdding ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Adding...
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="h-4 w-4" />
+                            Add to Cart
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {application.inCart && (
+                      <button
+                        onClick={() => handleRemoveFromCart(application.id)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Remove from Cart
                       </button>
                     )}
                   </div>
@@ -345,27 +491,52 @@ export default function ApplicationClient({
                 <div className="mb-4">
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-500">Completion Score</span>
-                    <span className="font-medium">{application.completionScore}%</span>
+                    <span className={`font-medium ${application.completionScore === 100 ? "text-green-600" : "text-gray-700"}`}>
+                      {application.completionScore}%
+                    </span>
                   </div>
                   <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: `${application.completionScore}%`,
-                        backgroundColor: colors.primary,
+                        backgroundColor: application.completionScore === 100 ? "#10b981" : colors.primary,
                       }}
                     />
+                  </div>
+                </div>
+
+                {/* Requirements Summary */}
+                <div className="mb-4">
+                  <div className="flex flex-wrap gap-2">
+                    {application.requirements.map((req) => (
+                      <div
+                        key={req.id}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                          req.isMet
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {req.isMet ? (
+                          <CheckCircle className="h-3 w-3" />
+                        ) : (
+                          <AlertCircle className="h-3 w-3" />
+                        )}
+                        {req.name}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Key Info */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-500">Submitted</p>
+                    <p className="text-gray-500">Created</p>
                     <p className="font-medium">
                       {application.submittedAt
                         ? new Date(application.submittedAt).toLocaleDateString()
-                        : "Not submitted"}
+                        : "Draft"}
                     </p>
                   </div>
                   <div>
@@ -375,15 +546,7 @@ export default function ApplicationClient({
                         ? new Date(application.reviewedAt).toLocaleDateString()
                         : application.submittedAt
                         ? new Date(application.submittedAt).toLocaleDateString()
-                        : "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Payment Amount</p>
-                    <p className="font-medium">
-                      {application.paymentAmount
-                        ? `₦${application.paymentAmount.toLocaleString()}`
-                        : "₦5,000"}
+                        : "Not updated"}
                     </p>
                   </div>
                   <div>
@@ -393,7 +556,21 @@ export default function ApplicationClient({
                       {application.requirements.length}
                     </p>
                   </div>
+                  <div>
+                    <p className="text-gray-500">Status</p>
+                    <p className="font-medium">{statusInfo.text}</p>
+                  </div>
                 </div>
+
+                {/* Missing Requirements Warning */}
+                {application.status === "DRAFT" && !allMandatoryMet && (
+                  <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <p className="text-sm text-yellow-800 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Complete all mandatory requirements before adding to cart
+                    </p>
+                  </div>
+                )}
 
                 {/* Rejection Reason */}
                 {application.status === "REJECTED" && application.rejectionReason && (
@@ -409,7 +586,7 @@ export default function ApplicationClient({
         </div>
       )}
 
-      {/* Details Modal */}
+      {/* Details Modal - Same as before but keep it */}
       {showDetailsModal && selectedApplication && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
@@ -601,13 +778,25 @@ export default function ApplicationClient({
                   Download Certificate
                 </button>
               )}
-              {selectedApplication.paymentStatus === "PENDING" && (
+              {selectedApplication.status === "DRAFT" && !selectedApplication.inCart && 
+               selectedApplication.completionScore === 100 && (
                 <button
-                  onClick={() => handleContinuePayment(selectedApplication.id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  onClick={() => handleAddToCart(selectedApplication)}
+                  disabled={addingToCart === selectedApplication.id}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg transition-colors hover:opacity-90"
+                  style={{ backgroundColor: colors.primary }}
                 >
-                  <CreditCard className="h-4 w-4" />
-                  Complete Payment
+                  {addingToCart === selectedApplication.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-4 w-4" />
+                      Add to Cart
+                    </>
+                  )}
                 </button>
               )}
               <button

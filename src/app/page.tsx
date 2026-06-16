@@ -67,7 +67,7 @@ const features = [
   {
     icon: Shield,
     title: "Government Licensed",
-    description: "Our certifications are recognized by regulatory bodies across Nigeria.",
+    description: "Certifications and licenses by government recognized trainers and sector skill councils and regulators.",
   },
   {
     icon: QrCode,
@@ -95,7 +95,7 @@ const howItWorks = [
   },
   {
     step: "02",
-    title: "Submit Credentials",
+    title: "Submit Data",
     description: "Upload your existing certificates, work experience, and identification.",
     icon: FileCheck,
   },
@@ -107,7 +107,7 @@ const howItWorks = [
   },
   {
     step: "04",
-    title: "Get Certified",
+    title: "Get Certified and Licensed ",
     description: "Complete training, pass assessments, and receive your digital license.",
     icon: Award,
   },
@@ -299,11 +299,11 @@ export default function HomePage() {
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 animate-fade-in-up animation-delay-200" style={{ color: colors.primary }}>
                 Transform Your Craft Into
-                <span style={{ color: colors.secondary }}> a Certified Career</span>
+                <span style={{ color: colors.secondary }}> a Certified and licensed Career</span>
               </h1>
 
               <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto animate-fade-in-up animation-delay-400">
-                Nigeria's premier platform for artisan certification, skill development, and government-licensed credentials.
+              Nigeria’s premier platform for compliance with National Skill Qualifications
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in-up animation-delay-600">
@@ -327,7 +327,7 @@ export default function HomePage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: colors.primary }}>Why Choose ArtisanPro?</h2>
-              <p className="text-lg text-gray-600">We provide everything you need to get certified, grow your skills, and advance your career.</p>
+              <p className="text-lg text-gray-600">We provide a seamless end-to-end process in collaboration with NATEB and ITF recognized trainers and NBTE approved licensing and regulatory bodies.</p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (

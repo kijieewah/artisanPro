@@ -3,38 +3,32 @@
 
 import {
   LayoutDashboard,
-  Users,
   CreditCard,
   ShoppingCart,
   LineChart,
   Settings,
   X,
   Building2,
-  Bookmark,
   Package,
   FileText,
   Award,
   GraduationCap,
   Upload,
-  ChevronDown,
   ChevronRight,
   HelpCircle,
   LogOut,
-  Bell,
   Shield,
-  Star,
-  TrendingUp,
-  Calendar,
   Briefcase,
-  MessageSquare,
-  PieChart,
-  Zap,
+  UserCheck,
+  FileCheck,
+  ScrollText,
+  BadgeCheck,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "~/lib/cn";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 // Brand Colors
@@ -62,7 +56,6 @@ interface NavItem {
   label: string;
   badge?: number;
   badgeColor?: string;
-  children?: NavItem[];
 }
 
 export default function Sidebar({
@@ -72,14 +65,32 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    certification: true,
-    business: false,
-  });
+  const [cartItemCount, setCartItemCount] = useState(0);
 
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  // Fetch cart count
+  const fetchCartCount = async () => {
+    try {
+      const response = await fetch("/api/artisan/cart");
+      const data = await response.json();
+      if (data.success) {
+        setCartItemCount(data.cart?.itemCount || 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch cart count:", error);
+    }
   };
+
+  useEffect(() => {
+    fetchCartCount();
+    
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      fetchCartCount();
+    };
+    
+    window.addEventListener("cartUpdated", handleCartUpdate);
+    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
+  }, []);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") {
@@ -103,7 +114,8 @@ export default function Sidebar({
     }
   };
 
-  const primaryNavItems: NavItem[] = [
+  // Main Navigation
+  const mainNavItems: NavItem[] = [
     {
       href: "/dashboard",
       icon: LayoutDashboard,
@@ -111,58 +123,75 @@ export default function Sidebar({
     },
   ];
 
+  // Shopping Section
+  const shoppingNavItems: NavItem[] = [
+    {
+      href: "/dashboard/orders",
+      icon: ShoppingCart,
+      label: "My Orders",
+      badge: cartItemCount,
+      badgeColor: "bg-primary",
+    },
+  ];
+
+  // Certification Section - Your own certification journey
   const certificationNavItems: NavItem[] = [
-    {
-      href: "/dashboard/profile",
-      icon: Building2,
-      label: "My Profile",
-    },
-    {
-      href: "/dashboard/services",
-      icon: Briefcase,
-      label: "My Services",
-    },
+    // {
+    //   href: "/dashboard/profile",
+    //   icon: UserCheck,
+    //   label: "My Profile",
+    // },
+    // {
+    //   href: "/dashboard/services",
+    //   icon: Briefcase,
+    //   label: "My Services",
+    // },
     {
       href: "/dashboard/requirements",
-      icon: Upload,
+      icon: FileCheck,
       label: "Document Requirements",
-      badge: 3,
-      badgeColor: "bg-red-500",
     },
     {
       href: "/dashboard/application",
-      icon: FileText,
+      icon: ScrollText,
       label: "My Application",
     },
     {
       href: "/dashboard/certificate",
-      icon: Award,
+      icon: BadgeCheck,
       label: "My Certificate",
     },
   ];
 
+  // Training Section - Find training providers and certification bodies
   const trainingNavItems: NavItem[] = [
     {
       href: "/dashboard/training",
       icon: GraduationCap,
       label: "Find Training",
     },
-  
-  ];
-
-  const businessNavItems: NavItem[] = [
     {
-      href: "/dashboard/payments",
-      icon: CreditCard,
-      label: "Payments",
-    },
-    {
-      href: "/dashboard/subscription",
-      icon: LineChart,
-      label: "Subscription",
+      href: "/dashboard/certification-partners",
+      icon: Award,
+      label: "Certification Partners",
     },
   ];
 
+  // Business Section
+  // const businessNavItems: NavItem[] = [
+  //   {
+  //     href: "/dashboard/payments",
+  //     icon: CreditCard,
+  //     label: "Payments",
+  //   },
+  //   {
+  //     href: "/dashboard/subscription",
+  //     icon: LineChart,
+  //     label: "Subscription",
+  //   },
+  // ];
+
+  // Support Section
   const supportNavItems: NavItem[] = [
     {
       href: "/dashboard/help",
@@ -176,44 +205,8 @@ export default function Sidebar({
     },
   ];
 
-  const NavLink = ({ item, depth = 0 }: { item: NavItem; depth?: number }) => {
+  const NavLink = ({ item }: { item: NavItem }) => {
     const active = isActive(item.href);
-    const hasChildren = item.children && item.children.length > 0;
-    const isExpanded = expandedSections[item.label];
-
-    if (hasChildren) {
-      return (
-        <div>
-          <button
-            onClick={() => toggleSection(item.label)}
-            className={cn(
-              "w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors duration-200",
-              "hover:bg-gray-100 dark:hover:bg-gray-800",
-              active
-                ? "bg-primary/10 text-primary dark:bg-primary/20"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-50"
-            )}
-          >
-            <div className="flex items-center space-x-3">
-              <item.icon className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </div>
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </button>
-          {isExpanded && (
-            <div className="ml-6 mt-1 space-y-1">
-              {item.children?.map((child) => (
-                <NavLink key={child.label} item={child} depth={depth + 1} />
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
 
     return (
       <Link
@@ -226,27 +219,32 @@ export default function Sidebar({
           "hover:bg-gray-100 dark:hover:bg-gray-800",
           active
             ? "bg-primary/10 text-primary dark:bg-primary/20"
-            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-50",
-          depth > 0 && "pl-9"
+            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-50"
         )}
       >
         <div className="flex items-center space-x-3">
           <item.icon className="h-4 w-4 flex-shrink-0" />
           <span className="truncate">{item.label}</span>
         </div>
-        {item.badge && (
+        {item.badge && item.badge > 0 && (
           <span
             className={cn(
-              "ml-2 rounded-full px-2 py-0.5 text-xs font-medium text-white",
+              "ml-2 rounded-full px-2 py-0.5 text-xs font-medium text-white animate-pulse",
               item.badgeColor || "bg-primary"
             )}
           >
-            {item.badge}
+            {item.badge > 9 ? "9+" : item.badge}
           </span>
         )}
       </Link>
     );
   };
+
+  const SectionHeader = ({ title }: { title: string }) => (
+    <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+      {title}
+    </div>
+  );
 
   return (
     <>
@@ -268,7 +266,7 @@ export default function Sidebar({
             : "-translate-x-full md:translate-x-0 md:shadow-none"
         )}
       >
-        {/* Header with Logo only */}
+        {/* Header with Logo */}
         <div className="flex h-16 items-center justify-center border-b px-4 dark:border-gray-800">
           <Link
             href="/dashboard"
@@ -302,7 +300,6 @@ export default function Sidebar({
         {user && (
           <div className="border-b p-4 dark:border-gray-800">
             <div className="flex items-center space-x-3">
-              {/* Profile Icon - Using brand blue color */}
               <div 
                 className="flex h-10 w-10 items-center justify-center rounded-full text-white font-medium"
                 style={{ backgroundColor: colors.primary }}
@@ -329,65 +326,46 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Navigation */}
+        {/* Navigation - All sections always visible */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
-          {/* Primary Navigation */}
+          {/* Main Section */}
           <div className="mb-6">
-            <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Main
-            </div>
-            {primaryNavItems.map((item) => (
+            <SectionHeader title="Main" />
+            {mainNavItems.map((item) => (
               <NavLink key={item.label} item={item} />
             ))}
           </div>
 
-          {/* Certification Section */}
+          {/* Shopping Section */}
           <div className="mb-6">
-            <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Certification
-            </div>
+            <SectionHeader title="Shopping" />
+            {shoppingNavItems.map((item) => (
+              <NavLink key={item.label} item={item} />
+            ))}
+          </div>
+
+          {/* Certification Section - Your own certification journey */}
+          <div className="mb-6">
+            <SectionHeader title="Certification" />
             {certificationNavItems.map((item) => (
               <NavLink key={item.label} item={item} />
             ))}
           </div>
 
-          {/* Training Section */}
+          {/* Training Section - Find training providers and certification bodies */}
           <div className="mb-6">
-            <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Training
-            </div>
+            <SectionHeader title="Training & Partners" />
             {trainingNavItems.map((item) => (
               <NavLink key={item.label} item={item} />
             ))}
           </div>
 
           {/* Business Section */}
-          <div className="mb-6">
-            <button
-              onClick={() => toggleSection("business")}
-              className="mb-2 flex w-full items-center justify-between px-3 text-xs font-semibold uppercase tracking-wider text-gray-400"
-            >
-              <span>Business</span>
-              {expandedSections.business ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-            </button>
-            {expandedSections.business && (
-              <div className="space-y-1">
-                {businessNavItems.map((item) => (
-                  <NavLink key={item.label} item={item} />
-                ))}
-              </div>
-            )}
-          </div>
+          
 
           {/* Support Section */}
           <div className="mb-6">
-            <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Support
-            </div>
+            <SectionHeader title="Support" />
             {supportNavItems.map((item) => (
               <NavLink key={item.label} item={item} />
             ))}

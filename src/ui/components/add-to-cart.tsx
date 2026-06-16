@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { useCart } from "~/lib/hooks/use-cart";
+import { useCart } from "~/lib/hooks/useCart";
 import { Button } from "~/ui/primitives/button";
 import { ShoppingCart, Heart } from "lucide-react";
 

@@ -3,7 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { SEO_CONFIG } from "~/app";
-import { CartProvider } from "~/lib/hooks/use-cart";
+// import { CartProvider } from "~/lib/hooks/useCart";
 import "~/css/globals.css";
 // import { Header } from "~/ui/components/header/header";
 // import { Header2 } from "~/ui/components/dash-header/page";
@@ -47,12 +47,12 @@ const RootLayout = async ({
           dark:from-neutral-950 dark:to-neutral-900 dark:text-neutral-100
         `}
       >
-        <CartProvider>
+       
           {/* {session ? "" : <Header showAuth={true} />} */}
           <main className={`flex min-h-screen flex-col`}>{children}</main>
           {/* <Footer /> */}
           <Toaster />
-        </CartProvider>
+     
 
         <SpeedInsights />
       </body>

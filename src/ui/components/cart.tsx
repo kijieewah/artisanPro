@@ -7,7 +7,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { cn } from "~/lib/cn";
-import { useCart } from "~/lib/hooks/use-cart";
+import { useCart } from "~/lib/hooks/useCart";
 import { useMediaQuery } from "~/lib/hooks/use-media-query";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";

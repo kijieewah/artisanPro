@@ -598,9 +598,146 @@ CREATE TABLE `course_reviews` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `carts` (
+    `id` VARCHAR(191) NOT NULL,
+    `artisan_id` VARCHAR(191) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `carts_artisan_id_key`(`artisan_id`),
+    INDEX `carts_artisan_id_idx`(`artisan_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `cart_items` (
+    `id` VARCHAR(191) NOT NULL,
+    `cart_id` VARCHAR(191) NOT NULL,
+    `item_type` ENUM('CERTIFICATION_APPLICATION', 'COURSE_ENROLLMENT', 'CERTIFICATION_SERVICE') NOT NULL,
+    `item_id` VARCHAR(191) NOT NULL,
+    `quantity` INTEGER NOT NULL DEFAULT 1,
+    `unit_price` DECIMAL(10, 2) NOT NULL,
+    `total_price` DECIMAL(10, 2) NOT NULL,
+    `status` ENUM('ACTIVE', 'REMOVED', 'PURCHASED') NOT NULL DEFAULT 'ACTIVE',
+    `metadata` JSON NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `cart_items_cart_id_idx`(`cart_id`),
+    INDEX `cart_items_item_type_item_id_idx`(`item_type`, `item_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `orders` (
+    `id` VARCHAR(191) NOT NULL,
+    `order_number` VARCHAR(191) NOT NULL,
+    `artisan_id` VARCHAR(191) NOT NULL,
+    `cart_id` VARCHAR(191) NULL,
+    `subtotal` DECIMAL(10, 2) NOT NULL,
+    `tax` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    `total` DECIMAL(10, 2) NOT NULL,
+    `currency` VARCHAR(191) NOT NULL DEFAULT 'NGN',
+    `status` ENUM('PENDING_PAYMENT', 'PAYMENT_PROCESSING', 'COMPLETED', 'FAILED', 'REFUNDED', 'CANCELLED') NOT NULL DEFAULT 'PENDING_PAYMENT',
+    `paymentMethod` ENUM('CARD', 'BANK_TRANSFER', 'USSD', 'WALLET') NULL,
+    `payment_reference` VARCHAR(191) NULL,
+    `payment_id` VARCHAR(191) NULL,
+    `paid_at` DATETIME(3) NULL,
+    `invoice_number` VARCHAR(191) NULL,
+    `invoice_url` VARCHAR(191) NULL,
+    `receipt_url` VARCHAR(191) NULL,
+    `notes` TEXT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `orders_order_number_key`(`order_number`),
+    UNIQUE INDEX `orders_payment_reference_key`(`payment_reference`),
+    UNIQUE INDEX `orders_invoice_number_key`(`invoice_number`),
+    INDEX `orders_artisan_id_idx`(`artisan_id`),
+    INDEX `orders_order_number_idx`(`order_number`),
+    INDEX `orders_status_idx`(`status`),
+    INDEX `orders_created_at_idx`(`created_at`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `order_items` (
+    `id` VARCHAR(191) NOT NULL,
+    `order_id` VARCHAR(191) NOT NULL,
+    `item_type` ENUM('CERTIFICATION_APPLICATION', 'COURSE_ENROLLMENT', 'CERTIFICATION_SERVICE') NOT NULL,
+    `item_id` VARCHAR(191) NOT NULL,
+    `quantity` INTEGER NOT NULL DEFAULT 1,
+    `unit_price` DECIMAL(10, 2) NOT NULL,
+    `total_price` DECIMAL(10, 2) NOT NULL,
+    `metadata` JSON NULL,
+
+    INDEX `order_items_order_id_idx`(`order_id`),
+    INDEX `order_items_item_type_item_id_idx`(`item_type`, `item_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `invoices` (
+    `id` VARCHAR(191) NOT NULL,
+    `invoice_number` VARCHAR(191) NOT NULL,
+    `order_id` VARCHAR(191) NOT NULL,
+    `artisan_id` VARCHAR(191) NOT NULL,
+    `artisan_name` VARCHAR(191) NOT NULL,
+    `artisan_email` VARCHAR(191) NOT NULL,
+    `artisan_phone` VARCHAR(191) NULL,
+    `artisan_address` TEXT NULL,
+    `invoice_date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `due_date` DATETIME(3) NOT NULL,
+    `subtotal` DECIMAL(10, 2) NOT NULL,
+    `tax` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    `total` DECIMAL(10, 2) NOT NULL,
+    `currency` VARCHAR(191) NOT NULL DEFAULT 'NGN',
+    `paymentStatus` VARCHAR(191) NOT NULL DEFAULT 'UNPAID',
+    `payment_date` DATETIME(3) NULL,
+    `pdf_url` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `invoices_invoice_number_key`(`invoice_number`),
+    UNIQUE INDEX `invoices_order_id_key`(`order_id`),
+    INDEX `invoices_invoice_number_idx`(`invoice_number`),
+    INDEX `invoices_order_id_idx`(`order_id`),
+    INDEX `invoices_artisan_id_idx`(`artisan_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `receipts` (
+    `id` VARCHAR(191) NOT NULL,
+    `receipt_number` VARCHAR(191) NOT NULL,
+    `order_id` VARCHAR(191) NOT NULL,
+    `invoice_id` VARCHAR(191) NULL,
+    `artisan_id` VARCHAR(191) NOT NULL,
+    `artisan_name` VARCHAR(191) NOT NULL,
+    `artisan_email` VARCHAR(191) NOT NULL,
+    `receipt_date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `amount` DECIMAL(10, 2) NOT NULL,
+    `currency` VARCHAR(191) NOT NULL DEFAULT 'NGN',
+    `payment_method` VARCHAR(191) NOT NULL,
+    `payment_reference` VARCHAR(191) NOT NULL,
+    `transaction_id` VARCHAR(191) NOT NULL,
+    `pdf_url` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `receipts_receipt_number_key`(`receipt_number`),
+    UNIQUE INDEX `receipts_order_id_key`(`order_id`),
+    UNIQUE INDEX `receipts_invoice_id_key`(`invoice_id`),
+    INDEX `receipts_receipt_number_idx`(`receipt_number`),
+    INDEX `receipts_order_id_idx`(`order_id`),
+    INDEX `receipts_artisan_id_idx`(`artisan_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `payment_transactions` (
     `id` VARCHAR(191) NOT NULL,
     `application_id` VARCHAR(191) NULL,
+    `order_id` VARCHAR(191) NULL,
     `user_id` VARCHAR(191) NOT NULL,
     `transaction_ref` VARCHAR(191) NOT NULL,
     `payment_gateway` VARCHAR(191) NOT NULL,
@@ -616,8 +753,10 @@ CREATE TABLE `payment_transactions` (
     `updated_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `payment_transactions_application_id_key`(`application_id`),
+    UNIQUE INDEX `payment_transactions_order_id_key`(`order_id`),
     UNIQUE INDEX `payment_transactions_transaction_ref_key`(`transaction_ref`),
     INDEX `payment_transactions_application_id_idx`(`application_id`),
+    INDEX `payment_transactions_order_id_idx`(`order_id`),
     INDEX `payment_transactions_user_id_idx`(`user_id`),
     INDEX `payment_transactions_transaction_ref_idx`(`transaction_ref`),
     INDEX `payment_transactions_status_idx`(`status`),
@@ -911,7 +1050,40 @@ ALTER TABLE `course_reviews` ADD CONSTRAINT `course_reviews_artisan_id_fkey` FOR
 ALTER TABLE `course_reviews` ADD CONSTRAINT `course_reviews_enrollment_id_fkey` FOREIGN KEY (`enrollment_id`) REFERENCES `enrollments`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `carts` ADD CONSTRAINT `carts_artisan_id_fkey` FOREIGN KEY (`artisan_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `cart_items` ADD CONSTRAINT `cart_items_cart_id_fkey` FOREIGN KEY (`cart_id`) REFERENCES `carts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `orders` ADD CONSTRAINT `orders_artisan_id_fkey` FOREIGN KEY (`artisan_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `orders` ADD CONSTRAINT `orders_cart_id_fkey` FOREIGN KEY (`cart_id`) REFERENCES `carts`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `order_items` ADD CONSTRAINT `order_items_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `invoices` ADD CONSTRAINT `invoices_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `invoices` ADD CONSTRAINT `invoices_artisan_id_fkey` FOREIGN KEY (`artisan_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `receipts` ADD CONSTRAINT `receipts_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `receipts` ADD CONSTRAINT `receipts_invoice_id_fkey` FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `receipts` ADD CONSTRAINT `receipts_artisan_id_fkey` FOREIGN KEY (`artisan_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `payment_transactions` ADD CONSTRAINT `payment_transactions_application_id_fkey` FOREIGN KEY (`application_id`) REFERENCES `applications`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `payment_transactions` ADD CONSTRAINT `payment_transactions_order_id_fkey` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `payment_transactions` ADD CONSTRAINT `payment_transactions_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

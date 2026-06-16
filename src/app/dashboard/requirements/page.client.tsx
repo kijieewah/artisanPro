@@ -1,3 +1,4 @@
+// app/dashboard/requirements/page.client.tsx (UPDATED - Add to Cart instead of Direct Payment)
 "use client";
 
 import { useState } from "react";
@@ -33,6 +34,7 @@ import {
   Sparkles,
   GraduationCap,
   CreditCard,
+  ShoppingCart,
 } from "lucide-react";
 
 // Brand Colors
@@ -60,7 +62,7 @@ interface Requirement {
 interface Service {
   id: number;
   name: string;
-  description?: string;  // Make optional, not string | null
+  description?: string;
   image?: string;
   status: boolean;
   industryId: number;
@@ -128,8 +130,7 @@ export default function RequirementsClient({
 }: RequirementsClientProps) {
   const router = useRouter();
   const [uploadingReq, setUploadingReq] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   const requiredRequirements = requirements.filter(r => r.type === "MANDATORY");
   const optionalRequirements = requirements.filter(r => r.type === "OPTIONAL");
@@ -192,59 +193,77 @@ export default function RequirementsClient({
     }
   };
 
-  // Submit application - opens payment modal first
-  const handleSubmitApplication = () => {
+  // Add to Cart instead of direct payment
+  const handleAddToCart = async () => {
     if (progress.requiredCompleted < progress.requiredTotal) {
-      toast.error(`Please upload all required documents before applying. Missing ${progress.requiredTotal - progress.requiredCompleted} document(s).`);
+      toast.error(`Please upload all required documents before adding to cart. Missing ${progress.requiredTotal - progress.requiredCompleted} document(s).`);
       return;
     }
-    setShowPaymentModal(true);
-  };
 
-  // Confirm payment and redirect to payment page
-  const handleConfirmPayment = async () => {
-    setIsSubmitting(true);
+    setIsAddingToCart(true);
     try {
       // First, create/update the application with DRAFT status
-      const response = await fetch("/api/artisan/apply-certification", {
+      const applyResponse = await fetch("/api/artisan/apply-certification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           artisanId: artisanProfile.id,
           serviceId: service.id,
-          status: "DRAFT",
         }),
       });
 
-      const data = await response.json() as { 
+      const applyData = await applyResponse.json() as { 
         error?: string; 
         success?: boolean; 
         application?: { id: string };
       };
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create application");
+      if (!applyResponse.ok) {
+        throw new Error(applyData.error || "Failed to create application");
       }
 
-      // Redirect to payment page with application ID
-      const paymentUrl = `/payment?applicationId=${data.application?.id}&amount=5000&serviceName=${encodeURIComponent(service.name)}`;
-      router.push(paymentUrl);
-      
+      const applicationId = applyData.application?.id;
+
+      // Add to cart
+      const cartResponse = await fetch("/api/artisan/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "CERTIFICATION_APPLICATION",
+          itemId: applicationId,
+          quantity: 1,
+        }),
+      });
+
+      const cartData = await cartResponse.json();
+
+      if (cartResponse.ok) {
+        toast.success(`${service.name} certification added to cart!`);
+        // Trigger cart update event
+        window.dispatchEvent(new Event("cartUpdated"));
+        // Redirect to dashboard or stay
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 2000);
+      } else {
+        throw new Error(cartData.error || "Failed to add to cart");
+      }
     } catch (error: any) {
-      console.error("Application creation error:", error);
-      toast.error(error.message || "Failed to create application. Please try again.");
-      setIsSubmitting(false);
+      console.error("Add to cart error:", error);
+      toast.error(error.message || "Failed to add to cart. Please try again.");
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
-  // Resubmit application
+  // Resubmit application (for rejected applications)
   const handleResubmitApplication = async () => {
     if (progress.requiredCompleted < progress.requiredTotal) {
       toast.error(`Please upload all required documents before resubmitting.`);
       return;
     }
 
-    setIsSubmitting(true);
+    setIsAddingToCart(true);
     try {
       const response = await fetch("/api/artisan/apply-certification/resubmit", {
         method: "POST",
@@ -267,11 +286,11 @@ export default function RequirementsClient({
       console.error("Resubmission error:", error);
       toast.error(error.message || "Failed to resubmit application");
     } finally {
-      setIsSubmitting(false);
+      setIsAddingToCart(false);
     }
   };
 
-  const canSubmit = progress.requiredCompleted === progress.requiredTotal;
+  const canAddToCart = progress.requiredCompleted === progress.requiredTotal;
   const isSubmitted = application?.status === "SUBMITTED";
   const isUnderReview = application?.status === "UNDER_REVIEW";
   const isApproved = application?.status === "APPROVED";
@@ -282,9 +301,9 @@ export default function RequirementsClient({
     if (!application) return null;
     switch (application.status) {
       case "DRAFT":
-        return { text: "Not Started", color: "bg-gray-100 text-gray-700", icon: FileText };
+        return { text: "Ready to Add to Cart", color: "bg-green-100 text-green-700", icon: ShoppingCart };
       case "SUBMITTED":
-        return { text: "Submitted for Review", color: "bg-blue-100 text-blue-700", icon: Clock };
+        return { text: "Under Review", color: "bg-blue-100 text-blue-700", icon: Clock };
       case "UNDER_REVIEW":
         return { text: "Under Review", color: "bg-yellow-100 text-yellow-700", icon: RefreshCw };
       case "APPROVED":
@@ -359,7 +378,7 @@ export default function RequirementsClient({
       <div className="rounded-lg bg-gradient-to-r p-6 text-white" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Welcome back, {user.name}!</h1>
+            <h1 className="text-2xl font-bold">Document Requirements</h1>
             <p className="mt-1 opacity-90">
               {service.name} - {service.industry?.name}
             </p>
@@ -411,7 +430,7 @@ export default function RequirementsClient({
       <div className="bg-white rounded-xl p-6 shadow-sm border">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Application Progress</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Document Upload Progress</h2>
             <p className="text-sm text-gray-500">
               {progress.uploaded} of {progress.total} documents uploaded
             </p>
@@ -515,8 +534,8 @@ export default function RequirementsClient({
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 mt-0.5" style={{ color: colors.accent }} />
             <p className="text-xs text-gray-600">
-              All mandatory documents must be uploaded before your certification can be approved.
-              You can upload documents one at a time, and they will be verified by our team.
+              All mandatory documents must be uploaded before you can add this certification to cart.
+              Once added to cart, you can proceed to checkout and pay for all items at once.
             </p>
           </div>
         </div>
@@ -529,10 +548,10 @@ export default function RequirementsClient({
             {(isRejected || isPendingInfo) ? (
               <button
                 onClick={handleResubmitApplication}
-                disabled={isSubmitting || !canSubmit}
+                disabled={isAddingToCart || !canAddToCart}
                 className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isSubmitting ? (
+                {isAddingToCart ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     Resubmitting...
@@ -546,19 +565,25 @@ export default function RequirementsClient({
               </button>
             ) : (
               <button
-                onClick={handleSubmitApplication}
-                disabled={!canSubmit || isSubmitted || isUnderReview}
-                className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={handleAddToCart}
+                disabled={!canAddToCart || isSubmitted || isUnderReview || isAddingToCart}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: colors.primary }}
               >
-                {isSubmitted || isUnderReview ? (
+                {isAddingToCart ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Adding to Cart...
+                  </>
+                ) : isSubmitted || isUnderReview ? (
                   <>
                     <Clock className="h-5 w-5" />
-                    Application Submitted
+                    Application Under Review
                   </>
                 ) : (
                   <>
-                    <FileCheck className="h-5 w-5" />
-                    Submit Application
+                    <ShoppingCart className="h-5 w-5" />
+                    Add to Cart
                   </>
                 )}
               </button>
@@ -574,76 +599,38 @@ export default function RequirementsClient({
         </Link>
       </div>
 
+      {/* Cart Info Banner */}
+      {canAddToCart && !isSubmitted && !isUnderReview && !isApproved && (
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-start gap-3">
+            <ShoppingCart className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-blue-800">Ready to Get Certified!</h4>
+              <p className="text-sm text-blue-700 mt-1">
+                All mandatory documents are uploaded. Click "Add to Cart" to add this certification to your shopping cart.
+                You can add multiple certifications and courses before checking out.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Help Text */}
-      <div className="p-4 bg-blue-50 rounded-lg">
+      <div className="p-4 bg-gray-50 rounded-lg">
         <div className="flex items-start gap-3">
-          <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+          <Shield className="h-5 w-5 text-gray-600 mt-0.5" />
           <div>
-            <h4 className="font-medium text-blue-800">Need Help?</h4>
-            <p className="text-sm text-blue-700 mt-1">
+            <h4 className="font-medium text-gray-800">Need Help?</h4>
+            <p className="text-sm text-gray-600 mt-1">
               All documents are securely stored and verified by our team. 
               Uploaded documents are used solely for certification purposes.
             </p>
-            <Link href="/support" className="inline-flex items-center gap-1 text-sm text-blue-700 font-medium mt-2 hover:text-blue-800">
+            <Link href="/support" className="inline-flex items-center gap-1 text-sm text-blue-600 font-medium mt-2 hover:text-blue-700">
               Contact Support <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
       </div>
-
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowPaymentModal(false)}>
-          <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ backgroundColor: `${colors.accent}20` }}>
-                <CreditCard className="h-8 w-8" style={{ color: colors.accent }} />
-              </div>
-              <h3 className="text-xl font-bold" style={{ color: colors.primary }}>Application Fee</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: colors.primary }}>₦5,000</p>
-            </div>
-            
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Document verification</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Certification processing</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Digital certificate issuance</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-200 font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmPayment}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90 flex items-center justify-center gap-2"
-                style={{ backgroundColor: colors.primary }}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Pay Now"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

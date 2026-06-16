@@ -1,4 +1,4 @@
-// app/dashboard/certificate/page.client.tsx
+// app/dashboard/certificate/page.client.tsx (Updated)
 "use client";
 
 import { useState } from "react";
@@ -25,6 +25,9 @@ import {
   Facebook,
   Twitter,
   Linkedin,
+  ShoppingCart,
+  CreditCard,
+  X,
 } from "lucide-react";
 
 const colors = {
@@ -51,6 +54,19 @@ interface PendingCertificate {
   serviceName: string;
   industryName: string;
   approvedAt: Date | null;
+  paymentCompleted: boolean;
+}
+
+interface PaidApplication {
+  id: string;
+  applicationNumber: string;
+  serviceName: string;
+  industryName: string;
+  orderNumber: string;
+  paidAt: Date | null;
+  invoiceNumber?: string;
+  receiptNumber?: string;
+  status: string;
 }
 
 interface CertificateClientProps {
@@ -59,10 +75,12 @@ interface CertificateClientProps {
     firstName: string;
     lastName: string;
     email: string;
+    name: string;
   };
   artisanProfile: any;
   certificates: Certificate[];
   pendingCertificates: PendingCertificate[];
+  paidApplications: PaidApplication[];
 }
 
 // Define response type
@@ -77,14 +95,17 @@ export default function CertificateClient({
   artisanProfile,
   certificates,
   pendingCertificates,
+  paidApplications,
 }: CertificateClientProps) {
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
 
   const handleGenerateCertificate = async (applicationId: string) => {
+    setGeneratingFor(applicationId);
     setIsGenerating(true);
     try {
       const response = await fetch("/api/artisan/generate-certificate", {
@@ -106,6 +127,7 @@ export default function CertificateClient({
       toast.error(error.message || "Failed to generate certificate");
     } finally {
       setIsGenerating(false);
+      setGeneratingFor(null);
     }
   };
 
@@ -162,7 +184,7 @@ export default function CertificateClient({
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="rounded-lg border bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="rounded-full p-2 bg-green-100">
@@ -181,7 +203,7 @@ export default function CertificateClient({
             </div>
             <div>
               <p className="text-2xl font-bold">{pendingCertificates.length}</p>
-              <p className="text-xs text-gray-500">Ready to Issue</p>
+              <p className="text-xs text-gray-500">Ready to Generate</p>
             </div>
           </div>
         </div>
@@ -192,21 +214,79 @@ export default function CertificateClient({
             </div>
             <div>
               <p className="text-2xl font-bold">{certificates.length}</p>
-              <p className="text-xs text-gray-500">Verifiable Certificates</p>
+              <p className="text-xs text-gray-500">Verifiable</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full p-2 bg-orange-100">
+              <CreditCard className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{paidApplications.length}</p>
+              <p className="text-xs text-gray-500">Paid Applications</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Pending Certificates */}
+      {/* Paid Applications Section - Shows completed payments awaiting admin approval */}
+      {paidApplications.length > 0 && (
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">Paid Applications - Pending Approval</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Your payment has been confirmed. Your application is awaiting admin review and approval.
+          </p>
+          <div className="space-y-3">
+            {paidApplications.map((app) => (
+              <div
+                key={app.id}
+                className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50"
+              >
+                <div>
+                  <h3 className="font-medium">{app.serviceName}</h3>
+                  <p className="text-sm text-gray-500">{app.industryName}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-xs text-gray-400">
+                      Application: {app.applicationNumber}
+                    </p>
+                    {app.orderNumber && (
+                      <p className="text-xs text-gray-400">
+                        Order: {app.orderNumber}
+                      </p>
+                    )}
+                    {app.paidAt && (
+                      <p className="text-xs text-green-600">
+                        Paid: {new Date(app.paidAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                    <Clock className="h-3 w-3" />
+                    Pending Review
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending Certificates - Ready to Generate (Approved by admin) */}
       {pendingCertificates.length > 0 && (
         <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Ready to Generate</h2>
+          <h2 className="text-lg font-semibold mb-4">Approved - Ready to Generate</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Your application has been approved! Generate your certificate now.
+          </p>
           <div className="space-y-3">
             {pendingCertificates.map((cert) => (
               <div
                 key={cert.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
+                className="flex items-center justify-between p-4 border rounded-lg bg-green-50"
               >
                 <div>
                   <h3 className="font-medium">{cert.serviceName}</h3>
@@ -214,13 +294,19 @@ export default function CertificateClient({
                   <p className="text-xs text-gray-400 mt-1">
                     Application: {cert.applicationNumber}
                   </p>
+                  {cert.approvedAt && (
+                    <p className="text-xs text-green-600">
+                      Approved: {new Date(cert.approvedAt).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => handleGenerateCertificate(cert.id)}
-                  disabled={isGenerating}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  disabled={isGenerating && generatingFor === cert.id}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: colors.primary }}
                 >
-                  {isGenerating ? (
+                  {isGenerating && generatingFor === cert.id ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Generating...
@@ -239,7 +325,7 @@ export default function CertificateClient({
       )}
 
       {/* Certificates List */}
-      {certificates.length === 0 && pendingCertificates.length === 0 ? (
+      {certificates.length === 0 && pendingCertificates.length === 0 && paidApplications.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border">
           <Award className="h-16 w-16 mx-auto text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Certificates Yet</h3>
@@ -248,122 +334,127 @@ export default function CertificateClient({
           </p>
           <Link
             href="/dashboard/requirements"
-            className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-lg text-white"
+            className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-lg text-white hover:opacity-90"
             style={{ backgroundColor: colors.primary }}
           >
             Start Certification Process
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {certificates.map((cert) => (
-            <div
-              key={cert.id}
-              className="rounded-lg border bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
-            >
-              {/* Certificate Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-full p-2 bg-green-100">
-                    <Award className="h-6 w-6 text-green-600" />
+        certificates.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">My Certificates</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {certificates.map((cert) => (
+                <div
+                  key={cert.id}
+                  className="rounded-lg border bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  {/* Certificate Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full p-2 bg-green-100">
+                        <Award className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{cert.serviceName}</h3>
+                        <p className="text-sm text-gray-500">{cert.industryName}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                      Verified
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{cert.serviceName}</h3>
-                    <p className="text-sm text-gray-500">{cert.industryName}</p>
+
+                  {/* Certificate Details */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Certificate No:</span>
+                      <span className="font-mono text-gray-900">{cert.certificateNumber}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Issued To:</span>
+                      <span className="font-medium text-gray-900">{fullName}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Issue Date:</span>
+                      <span className="text-gray-900">{new Date(cert.issuedAt).toLocaleDateString()}</span>
+                    </div>
+                    {cert.expiresAt && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Expiry Date:</span>
+                        <span className="text-gray-900">{new Date(cert.expiresAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-4 border-t">
+                    <button
+                      onClick={() => handleDownloadCertificate(cert.id)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </button>
+                    <button
+                      onClick={() => handleViewCertificate(cert)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </button>
+                  </div>
+
+                  {/* Share Buttons */}
+                  <div className="flex justify-center gap-3 mt-3 pt-3 border-t">
+                    <button
+                      onClick={() => handleShare("facebook", cert)}
+                      className="p-1.5 text-gray-500 hover:text-blue-600 transition-colors"
+                      title="Share on Facebook"
+                    >
+                      <Facebook className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleShare("twitter", cert)}
+                      className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors"
+                      title="Share on Twitter"
+                    >
+                      <Twitter className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleShare("linkedin", cert)}
+                      className="p-1.5 text-gray-500 hover:text-blue-700 transition-colors"
+                      title="Share on LinkedIn"
+                    >
+                      <Linkedin className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleCopyCode(cert.uniqueCode)}
+                      className="p-1.5 text-gray-500 hover:text-green-600 transition-colors"
+                      title="Copy verification code"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
-                  Verified
-                </span>
-              </div>
-
-              {/* Certificate Details */}
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Certificate No:</span>
-                  <span className="font-mono text-gray-900">{cert.certificateNumber}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Issued To:</span>
-                  <span className="font-medium text-gray-900">{fullName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Issue Date:</span>
-                  <span className="text-gray-900">{new Date(cert.issuedAt).toLocaleDateString()}</span>
-                </div>
-                {cert.expiresAt && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Expiry Date:</span>
-                    <span className="text-gray-900">{new Date(cert.expiresAt).toLocaleDateString()}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2 pt-4 border-t">
-                <button
-                  onClick={() => handleDownloadCertificate(cert.id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </button>
-                <button
-                  onClick={() => handleViewCertificate(cert)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Eye className="h-4 w-4" />
-                  View
-                </button>
-              </div>
-
-              {/* Share Buttons */}
-              <div className="flex justify-center gap-3 mt-3 pt-3 border-t">
-                <button
-                  onClick={() => handleShare("facebook", cert)}
-                  className="p-1.5 text-gray-500 hover:text-blue-600 transition-colors"
-                  title="Share on Facebook"
-                >
-                  <Facebook className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleShare("twitter", cert)}
-                  className="p-1.5 text-gray-500 hover:text-blue-400 transition-colors"
-                  title="Share on Twitter"
-                >
-                  <Twitter className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleShare("linkedin", cert)}
-                  className="p-1.5 text-gray-500 hover:text-blue-700 transition-colors"
-                  title="Share on LinkedIn"
-                >
-                  <Linkedin className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleCopyCode(cert.uniqueCode)}
-                  className="p-1.5 text-gray-500 hover:text-green-600 transition-colors"
-                  title="Copy verification code"
-                >
-                  <Copy className="h-4 w-4" />
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )
       )}
 
       {/* QR Code Modal */}
       {showQRModal && selectedCertificate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowQRModal(false)}>
+          <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Certificate Details</h3>
               <button
                 onClick={() => setShowQRModal(false)}
                 className="p-1 hover:bg-gray-100 rounded"
               >
-                <QrCode className="h-5 w-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 

@@ -1,9 +1,11 @@
+// app/dashboard/page.client.tsx (COMPLETE FIXED VERSION with upload modal)
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef,useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+
 import {
   CheckCircle,
   XCircle,
@@ -29,6 +31,8 @@ import {
   Loader2,
   X,
   CreditCard,
+  ShoppingCart,
+  Eye,
 } from "lucide-react";
 
 // Brand Colors
@@ -49,14 +53,13 @@ interface UserData {
   role: string;
 }
 
-// In the ArtisanProfile interface, make sure city is optional
 interface ArtisanProfile {
   id: string;
   userId: string;
   gender: string;
   dateOfBirth: string;
   address: string;
-  city?: string; // Make optional
+  city?: string;
   state: { name: string };
   localGovernment: { name: string };
   workingAddress: string;
@@ -107,34 +110,6 @@ interface Requirement {
   };
 }
 
-interface Partner {
-  id: string;
-  businessName: string;
-  businessEmail: string;
-  businessPhone: string;
-  website?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  description?: string;
-  logoUrl?: string;
-  partnerType?: string;
-  status: string;
-  partnerServices: Array<{
-    service: {
-      id: number;
-      name: string;
-      description?: string;
-    };
-  }>;
-  partnerIndustries: Array<{
-    industry: {
-      id: number;
-      name: string;
-    };
-  }>;
-}
-
 interface DashboardClientProps {
   user: UserData;
   artisanProfile: ArtisanProfile;
@@ -156,604 +131,6 @@ interface DashboardClientProps {
   needsTraining: boolean;
   canApplyForCertification: boolean;
   needsToUploadDocuments: boolean;
-}
-
-// ============================================
-// Training & Certification Partners Modal
-// ============================================
-// ============================================
-// Training & Certification Partners Modal
-// ============================================
-
-function TrainingPartnersModal({ 
-  isOpen, 
-  onClose, 
-  serviceId, 
-  serviceName 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  serviceId: number; 
-  serviceName: string;
-}) {
-  const [loading, setLoading] = useState(true);
-  const [trainingPartners, setTrainingPartners] = useState<Partner[]>([]);
-  const [certificationPartners, setCertificationPartners] = useState<Partner[]>([]);
-  const [activeTab, setActiveTab] = useState<"training" | "certification">("training");
-
-  useEffect(() => {
-    if (isOpen && serviceId) {
-      fetchPartners();
-    }
-  }, [isOpen, serviceId]);
-
-  const fetchPartners = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/artisan/partners?serviceId=${serviceId}`);
-      const data = await response.json() as {
-        success: boolean;
-        trainingPartners?: Partner[];
-        certificationPartners?: Partner[];
-        error?: string;
-      };
-      
-      if (data.success) {
-        setTrainingPartners(data.trainingPartners || []);
-        setCertificationPartners(data.certificationPartners || []);
-      } else {
-        console.error("Failed to fetch partners:", data.error);
-        toast.error(data.error || "Failed to load partners");
-      }
-    } catch (error) {
-      console.error("Error fetching partners:", error);
-      toast.error("Failed to load partners");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleContactPartner = (partner: Partner, type: "training" | "certification") => {
-    const subject = encodeURIComponent(
-      `Inquiry about ${type === "training" ? "Training" : "Certification"} Services - ${serviceName}`
-    );
-    const body = encodeURIComponent(
-      `Dear ${partner.businessName},\n\n` +
-      `I am an artisan specializing in ${serviceName} and I am interested in learning more about your ${type === "training" ? "training programs" : "certification services"}.\n\n` +
-      `Could you please provide more information about:\n` +
-      `- Available ${type === "training" ? "courses" : "certification options"}\n` +
-      `- Requirements and process\n` +
-      `- Fees and duration\n\n` +
-      `Thank you,\n` +
-      `ArtisanPro User`
-    );
-    
-    window.location.href = `mailto:${partner.businessEmail}?subject=${subject}&body=${body}`;
-  };
-
-  const handleCallPartner = (phone: string) => {
-    window.location.href = `tel:${phone}`;
-  };
-
-  const handleVisitWebsite = (website: string) => {
-    window.open(website, '_blank');
-  };
-
-  // Add missing Globe icon if not already imported
-  const Globe = (props: any) => (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="2" y1="12" x2="22" y2="12"/>
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-    </svg>
-  );
-
-  const PartnerCard = ({ partner, type }: { partner: Partner; type: "training" | "certification" }) => (
-    <div className="border rounded-lg p-4 hover:shadow-md transition-all bg-white">
-      <div className="flex items-start gap-4">
-        <div className="flex-shrink-0">
-          {partner.logoUrl ? (
-            <img src={partner.logoUrl} alt={partner.businessName} className="h-16 w-16 object-contain rounded-lg border" />
-          ) : (
-            <div className="h-16 w-16 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.primary}10` }}>
-              {type === "training" ? (
-                <GraduationCap className="h-8 w-8" style={{ color: colors.primary }} />
-              ) : (
-                <Award className="h-8 w-8" style={{ color: colors.primary }} />
-              )}
-            </div>
-          )}
-        </div>
-        
-        <div className="flex-1">
-          <h4 className="font-semibold text-lg" style={{ color: colors.primary }}>
-            {partner.businessName}
-          </h4>
-          
-          <div className="flex flex-wrap gap-1 mt-2">
-            {partner.partnerServices?.slice(0, 3).map((ps) => (
-              <span key={ps.service.id} className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
-                {ps.service.name}
-              </span>
-            ))}
-            {partner.partnerServices && partner.partnerServices.length > 3 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                +{partner.partnerServices.length - 3}
-              </span>
-            )}
-          </div>
-          
-          {partner.description && (
-            <p className="text-sm text-gray-600 mt-2 line-clamp-2">{partner.description}</p>
-          )}
-          
-          {(partner.city || partner.state) && (
-            <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-              <MapPin className="h-3 w-3" />
-              <span>{[partner.city, partner.state].filter(Boolean).join(", ")}</span>
-            </div>
-          )}
-          
-          <div className="flex flex-wrap gap-2 mt-3">
-            <button
-              onClick={() => handleContactPartner(partner, type)}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:opacity-90 flex items-center gap-1"
-              style={{ backgroundColor: colors.primary, color: "white" }}
-            >
-              <Mail className="h-3 w-3" />
-              Email
-            </button>
-            {partner.businessPhone && (
-              <button
-                onClick={() => handleCallPartner(partner.businessPhone)}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border hover:bg-gray-50 flex items-center gap-1"
-                style={{ borderColor: colors.primary, color: colors.primary }}
-              >
-                <Phone className="h-3 w-3" />
-                Call
-              </button>
-            )}
-            {partner.website && (
-              <button
-                onClick={() => handleVisitWebsite(partner.website!)}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border hover:bg-gray-50 flex items-center gap-1"
-                style={{ borderColor: colors.secondary, color: colors.secondary }}
-              >
-                <Globe className="h-3 w-3" />
-                Website
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 flex justify-between items-center p-4 border-b" style={{ backgroundColor: colors.light, borderBottomColor: colors.accent }}>
-          <div>
-            <h3 className="text-xl font-bold" style={{ color: colors.primary }}>
-              {serviceName} - Partners
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">Connect with trusted training and certification partners</p>
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        <div className="p-6">
-          <div className="flex gap-4 border-b mb-6">
-            <button
-              onClick={() => setActiveTab("training")}
-              className={`pb-2 px-1 font-medium transition-all ${
-                activeTab === "training" 
-                  ? "border-b-2" 
-                  : "text-gray-500"
-              }`}
-              style={activeTab === "training" ? { borderBottomColor: colors.primary, color: colors.primary } : {}}
-            >
-              <div className="flex items-center gap-2">
-                <GraduationCap className="h-4 w-4" />
-                Training Partners
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100">
-                  {trainingPartners.length}
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("certification")}
-              className={`pb-2 px-1 font-medium transition-all ${
-                activeTab === "certification" 
-                  ? "border-b-2" 
-                  : "text-gray-500"
-              }`}
-              style={activeTab === "certification" ? { borderBottomColor: colors.primary, color: colors.primary } : {}}
-            >
-              <div className="flex items-center gap-2">
-                <Award className="h-4 w-4" />
-                Certification Partners
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100">
-                  {certificationPartners.length}
-                </span>
-              </div>
-            </button>
-          </div>
-
-          {loading && (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin" style={{ color: colors.primary }} />
-            </div>
-          )}
-
-          {!loading && activeTab === "training" && (
-            <>
-              {trainingPartners.length === 0 ? (
-                <div className="text-center py-12">
-                  <GraduationCap className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">No training partners found</h4>
-                  <p className="text-gray-500 text-sm">
-                    No training partners are currently available for {serviceName}. Check back later!
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-500 mb-4">
-                    Connect directly with these training partners to learn about courses, schedules, and enrollment.
-                  </p>
-                  {trainingPartners.map((partner) => (
-                    <PartnerCard key={partner.id} partner={partner} type="training" />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {!loading && activeTab === "certification" && (
-            <>
-              {certificationPartners.length === 0 ? (
-                <div className="text-center py-12">
-                  <Award className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">No certification partners found</h4>
-                  <p className="text-gray-500 text-sm">
-                    No certification partners are currently available for {serviceName}. Check back later!
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-500 mb-4">
-                    Connect directly with these certification bodies to learn about certification requirements and processes.
-                  </p>
-                  {certificationPartners.map((partner) => (
-                    <PartnerCard key={partner.id} partner={partner} type="certification" />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// Application & Verification Component
-// ============================================
-// ============================================
-// Application & Verification Component
-// ============================================
-
-function ApplicationVerificationSection({ 
-  application, 
-  artisanProfile,
-  currentService,
-  requirementsStatus,
-  onRefresh
-}: { 
-  application?: Application;
-  artisanProfile: ArtisanProfile;
-  currentService: any;
-  requirementsStatus: Requirement[];
-  onRefresh: () => void;
-}) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-
-  const allRequirementsMet = requirementsStatus.length > 0 && 
-    requirementsStatus.filter(r => r.type === "MANDATORY").every(r => r.isUploaded);
-  
-  const pendingRequirements = requirementsStatus.filter(r => r.type === "MANDATORY" && !r.isUploaded);
-  const optionalRequirements = requirementsStatus.filter(r => r.type === "OPTIONAL" && !r.isUploaded);
-  const uploadedCount = requirementsStatus.filter(r => r.isUploaded).length;
-  const totalCount = requirementsStatus.length;
-
-  const handleSubmitApplication = () => {
-    if (!allRequirementsMet) {
-      toast.error("Please upload all mandatory documents before applying");
-      return;
-    }
-    setShowPaymentModal(true);
-  };
-
-  const handleConfirmPayment = async () => {
-    setIsSubmitting(true);
-    try {
-      const response = await fetch("/api/artisan/apply-certification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          artisanId: artisanProfile.id,
-          serviceId: currentService?.id,
-        }),
-      });
-      
-      const data = await response.json() as {
-        success?: boolean;
-        error?: string;
-        application?: Application;
-      };
-      
-      if (response.ok) {
-        toast.success("Application submitted successfully! Our team will review your documents.");
-        setShowPaymentModal(false);
-        setTimeout(() => {
-          onRefresh();
-        }, 1500);
-      } else {
-        throw new Error(data.error || "Application failed");
-      }
-    } catch (error) {
-      console.error("Application error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to submit application. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // If already has active application, show status
-  if (application && application.status !== "DRAFT") {
-    const statusInfo: Record<string, { icon: any; title: string; message: string; color: string; bgColor: string; borderColor: string }> = {
-      SUBMITTED: { 
-        icon: Clock, 
-        title: "Application Submitted", 
-        message: "Your application has been submitted and is waiting for review.",
-        color: "text-yellow-600",
-        bgColor: "bg-yellow-50",
-        borderColor: "border-yellow-200"
-      },
-      UNDER_REVIEW: { 
-        icon: Loader2, 
-        title: "Under Review", 
-        message: "Our team is reviewing your application and documents.",
-        color: "text-blue-600",
-        bgColor: "bg-blue-50",
-        borderColor: "border-blue-200"
-      },
-      PENDING_INFORMATION: { 
-        icon: AlertCircle, 
-        title: "Additional Information Required", 
-        message: application.rejectionReason || "Please provide additional information requested by our team.",
-        color: "text-orange-600",
-        bgColor: "bg-orange-50",
-        borderColor: "border-orange-200"
-      },
-      APPROVED: { 
-        icon: CheckCircle, 
-        title: "Application Approved!", 
-        message: "Congratulations! Your application has been approved.",
-        color: "text-green-600",
-        bgColor: "bg-green-50",
-        borderColor: "border-green-200"
-      },
-      REJECTED: { 
-        icon: XCircle, 
-        title: "Application Rejected", 
-        message: application.rejectionReason || "Your application was not approved at this time.",
-        color: "text-red-600",
-        bgColor: "bg-red-50",
-        borderColor: "border-red-200"
-      },
-    };
-
-    const info = statusInfo[application.status] || statusInfo.SUBMITTED;
-    const IconComponent = info.icon;
-
-    return (
-      <div className={`rounded-lg border p-6 ${info.bgColor} ${info.borderColor} mb-6`}>
-        <div className="flex items-start gap-4">
-          <div className={`flex-shrink-0 ${info.color}`}>
-            {application.status === "UNDER_REVIEW" ? (
-              <IconComponent className="h-8 w-8 animate-spin" />
-            ) : (
-              <IconComponent className="h-8 w-8" />
-            )}
-          </div>
-          <div className="flex-1">
-            <h3 className={`text-lg font-semibold ${info.color}`}>{info.title}</h3>
-            <p className="text-gray-600 mt-1">{info.message}</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Application Number: <span className="font-mono">{application.applicationNumber}</span>
-            </p>
-            {application.status === "APPROVED" && application.certificate && (
-              <button
-                onClick={() => {
-                  const certLink = `/api/artisan/certificate/${application.certificate?.id}/download`;
-                  window.open(certLink, '_blank');
-                }}
-                className="mt-3 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90"
-                style={{ backgroundColor: colors.primary }}
-              >
-                Download Certificate
-              </button>
-            )}
-            {application.status === "PENDING_INFORMATION" && (
-              <button
-                onClick={() => document.getElementById("requirements")?.scrollIntoView({ behavior: "smooth" })}
-                className="mt-3 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all hover:opacity-90"
-                style={{ backgroundColor: colors.primary }}
-              >
-                Upload Missing Documents
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Rest of the component remains the same...
-  return (
-    <div className="rounded-lg border bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 mb-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="rounded-full p-2" style={{ backgroundColor: `${colors.primary}15` }}>
-          <FileCheck className="h-5 w-5" style={{ color: colors.primary }} />
-        </div>
-        <h2 className="text-lg font-semibold" style={{ color: colors.primary }}>
-          Application & Verification
-        </h2>
-      </div>
-
-      {/* Requirement Check Status */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-gray-700">Document Readiness</span>
-          <span className={`text-sm font-semibold ${allRequirementsMet ? "text-green-600" : "text-orange-600"}`}>
-            {allRequirementsMet ? "All Mandatory Documents Ready" : `${pendingRequirements.length} Mandatory Document(s) Pending`}
-          </span>
-        </div>
-        
-        {/* Progress Bar */}
-        <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
-          <div 
-            className="h-full rounded-full transition-all duration-500"
-            style={{ 
-              width: `${(uploadedCount / totalCount) * 100}%`,
-              backgroundColor: colors.primary 
-            }}
-          />
-        </div>
-        
-        <p className="text-xs text-gray-500 mt-2">{uploadedCount} of {totalCount} documents uploaded</p>
-        
-        {/* Pending Requirements List */}
-        {pendingRequirements.length > 0 && (
-          <div className="mt-4 p-3 rounded-lg bg-orange-50 border border-orange-200">
-            <p className="text-sm font-medium text-orange-800 mb-2">Pending Mandatory Documents:</p>
-            <ul className="space-y-1">
-              {pendingRequirements.map(req => (
-                <li key={req.id} className="text-sm text-orange-700 flex items-center gap-2">
-                  <AlertCircle className="h-3 w-3" />
-                  {req.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Optional Requirements Note */}
-        {optionalRequirements.length > 0 && (
-          <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-            <p className="text-sm text-blue-800 flex items-center gap-2">
-              <Info className="h-4 w-4" />
-              Optional documents can be uploaded later: {optionalRequirements.map(r => r.name).join(", ")}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Application Fee Info */}
-      <div className="border-t border-gray-200 pt-4 mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-600">Application Fee</span>
-          <span className="text-lg font-bold" style={{ color: colors.primary }}>₦5,000</span>
-        </div>
-        <p className="text-xs text-gray-500">
-          The application fee covers document verification and certification processing.
-        </p>
-      </div>
-
-      {/* Apply Button */}
-      <button
-        onClick={handleSubmitApplication}
-        disabled={!allRequirementsMet || isSubmitting}
-        className={`w-full py-3 rounded-lg text-white font-semibold transition-all flex items-center justify-center gap-2 ${
-          !allRequirementsMet ? "opacity-50 cursor-not-allowed" : "hover:opacity-90"
-        }`}
-        style={{ backgroundColor: colors.primary }}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <CheckCircle className="h-4 w-4" />
-            Submit Application for Verification
-          </>
-        )}
-      </button>
-
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setShowPaymentModal(false)}>
-          <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ backgroundColor: `${colors.accent}20` }}>
-                <CreditCard className="h-8 w-8" style={{ color: colors.accent }} />
-              </div>
-              <h3 className="text-xl font-bold" style={{ color: colors.primary }}>Application Fee</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: colors.primary }}>₦5,000</p>
-            </div>
-            
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Document verification</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Certification processing</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Digital certificate issuance</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-200 font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmPayment}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-2 rounded-lg text-white font-medium transition-all hover:opacity-90 flex items-center justify-center gap-2"
-                style={{ backgroundColor: colors.primary }}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Pay Now"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // Status Badge Component
@@ -878,65 +255,175 @@ const ActionCard = ({
   );
 };
 
-// Requirement Card Component
-const RequirementCard = ({ 
+// Upload Modal Component
+const UploadModal = ({ 
+  isOpen, 
+  onClose, 
   requirement, 
-  onUpload,
-  onView,
-  uploading 
+  artisanId, 
+  serviceId,
+  onUploadSuccess 
 }: { 
-  requirement: Requirement; 
-  onUpload: (reqId: number) => void;
-  onView: (requirement: Requirement) => void;
-  uploading: number | null;
+  isOpen: boolean; 
+  onClose: () => void; 
+  requirement: Requirement | null;
+  artisanId: string;
+  serviceId: number;
+  onUploadSuccess: () => void;
 }) => {
-  const isUploading = uploading === requirement.id;
-  
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!isOpen || !requirement) return null;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast.error("Please select a file to upload");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("artisanId", artisanId);
+      formData.append("serviceId", serviceId.toString());
+      formData.append("requirementId", requirement.id.toString());
+
+      const response = await fetch("/api/artisan/upload-requirement", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`${requirement.name} uploaded successfully!`);
+        setSelectedFile(null);
+        onUploadSuccess();
+        onClose();
+      } else {
+        throw new Error(data.error || "Upload failed");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to upload document");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleViewDocument = () => {
+    if (requirement.upload?.documentUrl) {
+      window.open(requirement.upload.documentUrl, "_blank");
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-      <div className="flex items-center gap-3 flex-1">
-        {requirement.isUploaded ? (
-          <CheckCircle className="h-5 w-5 text-green-500" />
-        ) : (
-          <FileText className="h-5 w-5 text-gray-400" />
-        )}
-        <div>
-          <p className="text-sm font-medium">{requirement.name}</p>
-          {requirement.type === "MANDATORY" && (
-            <span className="text-xs text-red-500">Mandatory</span>
-          )}
-          {requirement.isUploaded && requirement.upload && (
-            <button
-              onClick={() => onView(requirement)}
-              className="text-xs text-blue-500 hover:underline mt-1"
-            >
-              View uploaded file
-            </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">
+            {requirement.isUploaded ? "View Document" : `Upload ${requirement.name}`}
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <X className="h-5 w-5 text-gray-400" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-gray-600 mb-2">{requirement.description}</p>
+            {requirement.type === "MANDATORY" && (
+              <span className="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                <AlertCircle className="h-3 w-3" />
+                Mandatory
+              </span>
+            )}
+          </div>
+
+          {requirement.isUploaded && requirement.upload ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-700">Document Uploaded</span>
+              </div>
+              <p className="text-xs text-green-600 mb-3">
+                Status: {requirement.upload.status}
+              </p>
+              <button
+                onClick={handleViewDocument}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white border rounded-lg hover:bg-gray-50 w-full justify-center"
+              >
+                <Eye className="h-4 w-4" />
+                View Document
+              </button>
+            </div>
+          ) : (
+            <>
+              <div 
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600">
+                  {selectedFile ? selectedFile.name : "Click to select or drag and drop"}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  PDF, DOC, DOCX, JPG, PNG (Max 10MB)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={!selectedFile || uploading}
+                  className="flex-1 px-4 py-2 rounded-lg text-white hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: colors.primary }}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      Upload
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
-      {!requirement.isUploaded ? (
-        <button
-          onClick={() => onUpload(requirement.id)}
-          disabled={isUploading}
-          className="rounded-lg px-3 py-1 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: colors.primary }}
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="h-3 w-3 animate-spin inline mr-1" />
-              Uploading...
-            </>
-          ) : (
-            "Upload"
-          )}
-        </button>
-      ) : (
-        <span className="text-sm text-green-600 flex items-center gap-1">
-          <CheckCircle className="h-3 w-3" />
-          Uploaded
-        </span>
-      )}
     </div>
   );
 };
@@ -960,93 +447,95 @@ export default function DashboardClient({
   needsToUploadDocuments,
 }: DashboardClientProps) {
   const router = useRouter();
-  const [uploadingReq, setUploadingReq] = useState<number | null>(null);
-  const [showPartnersModal, setShowPartnersModal] = useState(false);
-  const [uploadedDocs, setUploadedDocs] = useState<Record<number, boolean>>(() => {
-    const initial: Record<number, boolean> = {};
-    requirementsStatus.forEach(req => {
-      initial[req.id] = req.isUploaded;
-    });
-    return initial;
-  });
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [selectedRequirement, setSelectedRequirement] = useState<Requirement | null>(null);
+  const [localRequirementsStatus, setLocalRequirementsStatus] = useState(requirementsStatus);
 
-  // Update uploadedDocs when requirementsStatus changes
+  // Sync with props
   useEffect(() => {
-    const newUploadedDocs: Record<number, boolean> = {};
-    requirementsStatus.forEach(req => {
-      newUploadedDocs[req.id] = req.isUploaded;
-    });
-    setUploadedDocs(newUploadedDocs);
+    setLocalRequirementsStatus(requirementsStatus);
   }, [requirementsStatus]);
 
-const handleUploadRequirement = async (reqId: number) => {
-  setUploadingReq(reqId);
-  
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*,application/pdf,.doc,.docx';
-  
-  input.onchange = async (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) {
-      setUploadingReq(null);
+  const handleOpenUploadModal = (requirement: Requirement) => {
+    setSelectedRequirement(requirement);
+    setUploadModalOpen(true);
+  };
+
+  const handleUploadSuccess = async () => {
+    // Refresh the page to get updated requirements status
+    router.refresh();
+  };
+
+  const handleAddCertificationToCart = async () => {
+    if (!currentService) {
+      toast.error("Please complete your profile first");
+      router.push("/dashboard/profile");
       return;
     }
+
+    // Check if all mandatory requirements are met
+    const mandatoryRequirements = localRequirementsStatus.filter(r => r.type === "MANDATORY");
+    const allMandatoryMet = mandatoryRequirements.every(r => r.isUploaded);
     
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
-      setUploadingReq(null);
+    if (!allMandatoryMet) {
+      toast.error("Please upload all mandatory documents before adding to cart");
       return;
     }
-    
+
+    setAddingToCart(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('artisanId', artisanProfile.id);
-      formData.append('serviceId', currentService?.id.toString() || '');
-      formData.append('requirementId', reqId.toString());
-      
-      const response = await fetch('/api/artisan/upload-requirement', {
-        method: 'POST',
-        body: formData,
+      // Use the apply-certification API to create/update application
+      const applyResponse = await fetch("/api/artisan/apply-certification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          artisanId: artisanProfile.id,
+          serviceId: currentService.id,
+        }),
       });
       
-      if (response.ok) {
-        toast.success(`${requirementsStatus.find(r => r.id === reqId)?.name} uploaded successfully!`);
+      const applyData = await applyResponse.json();
+      
+      if (!applyData.success) {
+        throw new Error(applyData.error || "Failed to create application");
+      }
+
+      const applicationId = applyData.application.id;
+
+      // Add to cart
+      const cartResponse = await fetch("/api/artisan/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: "CERTIFICATION_APPLICATION",
+          itemId: applicationId,
+          quantity: 1,
+        }),
+      });
+      
+      const cartData = await cartResponse.json();
+      
+      if (cartData.success) {
+        toast.success(`${currentService.name} certification added to cart!`);
+        window.dispatchEvent(new Event("cartUpdated"));
         setTimeout(() => {
-          window.location.reload();
+          router.refresh();
         }, 1500);
       } else {
-        const errorData = await response.json() as { error?: string };
-        throw new Error(errorData.error || 'Upload failed');
+        toast.error(cartData.error || "Failed to add to cart");
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload document. Please try again.');
+      console.error("Add to cart error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add to cart");
     } finally {
-      setUploadingReq(null);
-    }
-  };
-  
-  input.click();
-};
-
-  const handleViewDocument = (requirement: Requirement) => {
-    if (requirement.upload?.documentUrl) {
-      window.open(requirement.upload.documentUrl, '_blank');
-    }
-  };
-
-  const handleFindTraining = () => {
-    if (currentService) {
-      setShowPartnersModal(true);
-    } else {
-      toast.info("Please complete your profile first");
-      router.push("/dashboard/profile");
+      setAddingToCart(false);
     }
   };
 
   const mainService = currentService;
+  const mandatoryRequirements = localRequirementsStatus.filter(r => r.type === "MANDATORY");
+  const allMandatoryMet = mandatoryRequirements.every(r => r.isUploaded);
 
   return (
     <div className="space-y-6">
@@ -1144,25 +633,14 @@ const handleUploadRequirement = async (reqId: number) => {
         </div>
       </div>
 
-      {/* Application & Verification Section */}
-      {requirementsStatus.length > 0 && (
-        <ApplicationVerificationSection
-          application={currentApplication}
-          artisanProfile={artisanProfile}
-          currentService={currentService}
-          requirementsStatus={requirementsStatus}
-          onRefresh={() => window.location.reload()}
-        />
-      )}
-
       {/* Three Main Action Options */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <ActionCard
           title="Get Training"
           description="Connect with training partners to find programs that match your skill development needs."
           buttonText={needsTraining ? "Find Training Partners" : "Browse Training"}
           icon={GraduationCap}
-          onClick={handleFindTraining}
+          onClick={() => router.push("/dashboard/training")}
           variant={needsTraining ? "warning" : "info"}
         />
 
@@ -1172,10 +650,16 @@ const handleUploadRequirement = async (reqId: number) => {
           buttonText={needsToUploadDocuments ? "Upload Now" : "Manage Documents"}
           icon={Upload}
           onClick={() => {
-            if (needsToUploadDocuments) {
-              document.getElementById("requirements")?.scrollIntoView({ behavior: "smooth" });
+            if (needsToUploadDocuments && localRequirementsStatus.length > 0) {
+              // Open the first pending requirement modal
+              const pendingReq = localRequirementsStatus.find(r => !r.isUploaded && r.type === "MANDATORY");
+              if (pendingReq) {
+                handleOpenUploadModal(pendingReq);
+              } else {
+                router.push("/dashboard/requirements");
+              }
             } else {
-              router.push("/dashboard/documents");
+              router.push("/dashboard/requirements");
             }
           }}
           variant={needsToUploadDocuments ? "warning" : "info"}
@@ -1183,10 +667,10 @@ const handleUploadRequirement = async (reqId: number) => {
 
         <ActionCard
           title="Get Certified"
-          description="Connect with certification bodies to get officially certified in your trade."
+          description="Get officially certified in your trade. Add certification to cart and checkout."
           buttonText={
             hasCertificate ? "Download Certificate" :
-            canApplyForCertification ? "Find Certification Partners" :
+            canApplyForCertification ? "Add to Cart" :
             hasPendingApplication ? "Application Pending" :
             "Start Application"
           }
@@ -1196,18 +680,29 @@ const handleUploadRequirement = async (reqId: number) => {
               const certLink = `/api/artisan/certificate/${currentApplication?.certificate?.id}/download`;
               window.open(certLink, '_blank');
             } else if (canApplyForCertification) {
-              handleFindTraining();
+              handleAddCertificationToCart();
             } else if (!hasActiveApplication) {
-              router.push("/dashboard/apply");
+              router.push("/dashboard/application");
             }
           }}
-          disabled={hasPendingApplication}
+          disabled={hasPendingApplication || addingToCart}
           variant={hasCertificate ? "success" : canApplyForCertification ? "primary" : "info"}
+        />
+
+        <ActionCard
+          title="View Cart"
+          description="Review your items and proceed to checkout for certification and courses."
+          buttonText="View Cart"
+          icon={ShoppingCart}
+          onClick={() => {
+            window.dispatchEvent(new Event("openCart"));
+          }}
+          variant="info"
         />
       </div>
 
-      {/* Requirements Section */}
-      {requirementsStatus.length > 0 && (
+      {/* Requirements Section with Upload Buttons */}
+      {localRequirementsStatus.length > 0 && (
         <div id="requirements" className="rounded-lg border bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -1217,25 +712,79 @@ const handleUploadRequirement = async (reqId: number) => {
             <FileCheck className="h-5 w-5 text-gray-400" />
           </div>
           <div className="space-y-3">
-            {requirementsStatus.map((req) => (
-              <RequirementCard
-                key={req.id}
-                requirement={req}
-                onUpload={handleUploadRequirement}
-                onView={handleViewDocument}
-                uploading={uploadingReq}
-              />
+            {localRequirementsStatus.map((req) => (
+              <div key={req.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                <div className="flex items-center gap-3 flex-1">
+                  {req.isUploaded ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <FileText className="h-5 w-5 text-gray-400" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">{req.name}</p>
+                    {req.type === "MANDATORY" && (
+                      <span className="text-xs text-red-500">Mandatory</span>
+                    )}
+                    {req.isUploaded && req.upload?.status && (
+                      <span className={`text-xs ml-2 ${
+                        req.upload.status === "VERIFIED" ? "text-green-600" : 
+                        req.upload.status === "REJECTED" ? "text-red-600" : "text-yellow-600"
+                      }`}>
+                        {req.upload.status.toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {!req.isUploaded ? (
+                  <button
+                    onClick={() => handleOpenUploadModal(req)}
+                    className="rounded-lg px-3 py-1 text-sm font-medium text-white transition-all hover:opacity-90 flex items-center gap-1"
+                    style={{ backgroundColor: colors.primary }}
+                  >
+                    <Upload className="h-3 w-3" />
+                    Upload
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenUploadModal(req)}
+                      className="rounded-lg px-3 py-1 text-sm font-medium text-gray-600 border hover:bg-gray-50 transition-all flex items-center gap-1"
+                    >
+                      <Eye className="h-3 w-3" />
+                      View
+                    </button>
+                    <span className="text-sm text-green-600 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Uploaded
+                    </span>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
-          <div className="mt-4 rounded-lg p-3" style={{ backgroundColor: `${colors.accent}10` }}>
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 mt-0.5" style={{ color: colors.accent }} />
-              <p className="text-xs text-gray-600">
-                All mandatory documents must be uploaded before your certification can be approved.
-                You can upload documents one at a time, and they will be verified by our team.
-              </p>
+          
+          {/* Status Message */}
+          {!allMandatoryMet && (
+            <div className="mt-4 rounded-lg p-3" style={{ backgroundColor: `${colors.accent}10` }}>
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5" style={{ color: colors.accent }} />
+                <p className="text-xs text-gray-600">
+                  Please upload all mandatory documents before adding certification to cart.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+          
+          {allMandatoryMet && (
+            <div className="mt-4 rounded-lg p-3 bg-green-50 border border-green-200">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 mt-0.5 text-green-600" />
+                <p className="text-xs text-green-700">
+                  All mandatory documents uploaded! You can now add certification to cart.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1266,15 +815,18 @@ const handleUploadRequirement = async (reqId: number) => {
         </div>
       )}
 
-      {/* Training & Certification Partners Modal */}
-      {currentService && (
-        <TrainingPartnersModal
-          isOpen={showPartnersModal}
-          onClose={() => setShowPartnersModal(false)}
-          serviceId={currentService.id}
-          serviceName={currentService.name}
-        />
-      )}
+      {/* Upload Modal */}
+      <UploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => {
+          setUploadModalOpen(false);
+          setSelectedRequirement(null);
+        }}
+        requirement={selectedRequirement}
+        artisanId={artisanProfile.id}
+        serviceId={currentService?.id}
+        onUploadSuccess={handleUploadSuccess}
+      />
     </div>
   );
 }

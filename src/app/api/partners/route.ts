@@ -1,116 +1,228 @@
-// app/api/artisan/partners/route.ts
+// app/api/partners/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "~/lib/db";
-import { getCurrentUser } from "~/lib/auth1";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
+    const industryId = searchParams.get("industryId");
     const serviceId = searchParams.get("serviceId");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const page = parseInt(searchParams.get("page") || "1");
+    const skip = (page - 1) * limit;
 
-    if (!serviceId) {
-      return NextResponse.json(
-        { error: "Service ID is required" },
-        { status: 400 }
-      );
-    }
+    // Build where clause
+    let whereClause: any = {
+      status: "ACTIVE",
+    };
 
-    const serviceIdNum = parseInt(serviceId);
-
-    // Get the service to find its industry
-    const service = await prisma.service.findUnique({
-      where: { id: serviceIdNum },
-      include: { industry: true },
-    });
-
-    if (!service) {
-      return NextResponse.json(
-        { error: "Service not found" },
-        { status: 404 }
-      );
-    }
-
-    // Fetch all active partners related to this service or industry
-    const partners = await prisma.partnerProfile.findMany({
-      where: {
-        AND: [
+    if (serviceId) {
+      whereClause = {
+        ...whereClause,
+        OR: [
           {
-            OR: [
-              {
-                partnerServices: {
-                  some: {
-                    serviceId: serviceIdNum,
-                  },
-                },
+            partnerServices: {
+              some: {
+                serviceId: parseInt(serviceId),
               },
-              {
-                partnerIndustries: {
-                  some: {
-                    industryId: service.industryId,
-                  },
-                },
-              },
-            ],
+            },
           },
           {
-            status: "ACTIVE",
+            courses: {
+              some: {
+                primaryServiceId: parseInt(serviceId),
+                status: "PUBLISHED",
+              },
+            },
           },
         ],
-      },
+      };
+    } else if (industryId) {
+      whereClause = {
+        ...whereClause,
+        partnerIndustries: {
+          some: {
+            industryId: parseInt(industryId),
+          },
+        },
+      };
+    }
+
+    // Fetch partners
+    const partners = await prisma.partnerProfile.findMany({
+      where: whereClause,
       include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         partnerServices: {
           include: {
             service: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
+              include: {
+                industry: true,
               },
             },
           },
         },
         partnerIndustries: {
           include: {
-            industry: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
+            industry: true,
+          },
+        },
+        courses: {
+          where: {
+            status: "PUBLISHED",
+          },
+          take: 3,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            cost: true,
+            durationHours: true,
+            deliveryMode: true,
+            thumbnailUrl: true,
+            rating: true,
+          },
+        },
+        _count: {
+          select: {
+            courses: true,
+            partnerServices: true,
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: skip,
     });
 
-    // If you need to differentiate between training and certification partners,
-    // you can filter by business name patterns
-    const trainingPartners = partners.filter(partner => 
-      !partner.businessName.toLowerCase().includes("certification") &&
-      !partner.businessName.toLowerCase().includes("accreditation") &&
-      !partner.businessName.toLowerCase().includes("board") &&
-      !partner.businessName.toLowerCase().includes("council")
-    );
-    
-    const certificationPartners = partners.filter(partner =>
-      partner.businessName.toLowerCase().includes("certification") ||
-      partner.businessName.toLowerCase().includes("accreditation") ||
-      partner.businessName.toLowerCase().includes("board") ||
-      partner.businessName.toLowerCase().includes("council")
-    );
+    // Get total count for pagination
+    const total = await prisma.partnerProfile.count({
+      where: whereClause,
+    });
+
+    // Transform partner data
+    const transformedPartners = partners.map((partner) => ({
+      id: partner.id,
+      businessName: partner.businessName,
+      businessEmail: partner.businessEmail,
+      businessPhone: partner.businessPhone,
+      website: partner.website,
+      address: partner.address,
+      city: partner.city,
+      state: partner.state,
+      description: partner.description,
+      logoUrl: partner.logoUrl,
+      status: partner.status,
+      commissionRate: partner.commissionRate,
+      totalRevenue: partner.totalRevenue,
+      createdAt: partner.createdAt,
+      services: partner.partnerServices.map((ps) => ({
+        id: ps.service.id,
+        name: ps.service.name,
+        description: ps.service.description,
+        industry: {
+          id: ps.service.industry.id,
+          name: ps.service.industry.name,
+        },
+      })),
+      industries: partner.partnerIndustries.map((pi) => ({
+        id: pi.industry.id,
+        name: pi.industry.name,
+        description: pi.industry.description,
+      })),
+      courses: partner.courses.map((course) => ({
+        id: course.id,
+        name: course.name,
+        description: course.description,
+        cost: Number(course.cost),
+        durationHours: course.durationHours,
+        deliveryMode: course.deliveryMode,
+        thumbnailUrl: course.thumbnailUrl,
+        rating: course.rating ? Number(course.rating) : 0,
+      })),
+      stats: {
+        totalCourses: partner._count.courses,
+        totalServices: partner._count.partnerServices,
+      },
+    }));
+
+    // Get featured partners (those with highest rated courses)
+    const featuredPartners = await prisma.partnerProfile.findMany({
+      where: {
+        status: "ACTIVE",
+        courses: {
+          some: {
+            status: "PUBLISHED",
+            rating: { gte: 4 },
+          },
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        partnerServices: {
+          include: {
+            service: {
+              include: {
+                industry: true,
+              },
+            },
+          },
+          take: 2,
+        },
+        courses: {
+          where: {
+            status: "PUBLISHED",
+          },
+          take: 2,
+          orderBy: { rating: "desc" },
+          select: {
+            id: true,
+            name: true,
+            cost: true,
+            rating: true,
+            thumbnailUrl: true,
+          },
+        },
+      },
+      take: 6,
+      orderBy: { createdAt: "desc" },
+    });
+
+    const transformedFeatured = featuredPartners.map((partner) => ({
+      id: partner.id,
+      businessName: partner.businessName,
+      logoUrl: partner.logoUrl,
+      description: partner.description,
+      rating: partner.courses.reduce((acc, c) => acc + Number(c.rating || 0), 0) / (partner.courses.length || 1),
+      totalCourses: partner.courses.length,
+      topServices: partner.partnerServices.slice(0, 2).map(ps => ps.service.name),
+    }));
 
     return NextResponse.json({
       success: true,
-      trainingPartners,
-      certificationPartners,
-      allPartners: partners,
+      partners: transformedPartners,
+      featured: transformedFeatured,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("Error fetching partners:", error);

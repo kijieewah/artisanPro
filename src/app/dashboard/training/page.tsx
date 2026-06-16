@@ -54,7 +54,7 @@ export default async function TrainingPage() {
 
   const artisanProfile = userWithProfile.artisanProfile;
   
-  // Transform userServices - convert null to undefined
+  // Transform user services - convert null to undefined
   const userServicesRaw = artisanProfile.artisanServices.map((as) => as.service);
   const transformedUserServices = userServicesRaw.map((service) => ({
     id: service.id,
@@ -97,7 +97,18 @@ export default async function TrainingPage() {
         ],
       },
       include: {
-        partner: true,
+        partner: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
         primaryService: {
           include: {
             industry: true,
@@ -218,6 +229,122 @@ export default async function TrainingPage() {
     });
   }
 
+  // Fetch recommended training partners
+  let recommendedPartners: any[] = [];
+  if (serviceIds.length > 0) {
+    recommendedPartners = await prisma.partnerProfile.findMany({
+      where: {
+        status: "ACTIVE",
+        OR: [
+          {
+            partnerServices: {
+              some: {
+                serviceId: { in: serviceIds },
+              },
+            },
+          },
+          {
+            partnerIndustries: {
+              some: {
+                industryId: { in: transformedUserServices.map(s => s.industryId) },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        partnerServices: {
+          include: {
+            service: {
+              include: {
+                industry: true,
+              },
+            },
+          },
+          take: 3,
+        },
+        partnerIndustries: {
+          include: {
+            industry: true,
+          },
+          take: 2,
+        },
+        courses: {
+          where: {
+            status: "PUBLISHED",
+          },
+          take: 2,
+          orderBy: { rating: "desc" },
+          select: {
+            id: true,
+            name: true,
+            cost: true,
+            rating: true,
+            durationHours: true,
+          },
+        },
+      },
+      take: 4,
+      orderBy: { createdAt: "desc" },
+    });
+  } else {
+    recommendedPartners = await prisma.partnerProfile.findMany({
+      where: {
+        status: "ACTIVE",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        partnerServices: {
+          include: {
+            service: {
+              include: {
+                industry: true,
+              },
+            },
+          },
+          take: 3,
+        },
+        partnerIndustries: {
+          include: {
+            industry: true,
+          },
+          take: 2,
+        },
+        courses: {
+          where: {
+            status: "PUBLISHED",
+          },
+          take: 2,
+          orderBy: { rating: "desc" },
+          select: {
+            id: true,
+            name: true,
+            cost: true,
+            rating: true,
+            durationHours: true,
+          },
+        },
+      },
+      take: 4,
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   // Fetch all services for filtering with industry relation
   const allServicesRaw = await prisma.service.findMany({
     where: { status: true },
@@ -293,7 +420,7 @@ export default async function TrainingPage() {
     syllabus: course.syllabus || undefined,
     durationHours: course.durationHours,
     durationDays: course.durationDays || undefined,
-    cost: course.cost,
+    cost: Number(course.cost),
     currency: course.currency,
     deliveryMode: course.deliveryMode,
     startDate: course.startDate || undefined,
@@ -308,7 +435,6 @@ export default async function TrainingPage() {
       id: course.partner.id,
       businessName: course.partner.businessName,
       logoUrl: course.partner.logoUrl || undefined,
-      partnerType: course.partner.partnerType || undefined,
     },
     primaryService: {
       id: course.primaryService.id,
@@ -323,10 +449,44 @@ export default async function TrainingPage() {
     enrollmentCount: course._count?.enrollments || 0,
   });
 
+  // Transform partners data
+  const transformPartner = (partner: any) => ({
+    id: partner.id,
+    businessName: partner.businessName,
+    businessEmail: partner.businessEmail,
+    businessPhone: partner.businessPhone,
+    website: partner.website,
+    address: partner.address,
+    city: partner.city,
+    state: partner.state,
+    description: partner.description,
+    logoUrl: partner.logoUrl,
+    status: partner.status,
+    rating: partner.courses.reduce((acc: number, c: any) => acc + Number(c.rating || 0), 0) / (partner.courses.length || 1),
+    totalCourses: partner.courses.length,
+    services: partner.partnerServices.map((ps: any) => ({
+      id: ps.service.id,
+      name: ps.service.name,
+      industryName: ps.service.industry?.name,
+    })),
+    industries: partner.partnerIndustries.map((pi: any) => ({
+      id: pi.industry.id,
+      name: pi.industry.name,
+    })),
+    courses: partner.courses.map((course: any) => ({
+      id: course.id,
+      name: course.name,
+      cost: Number(course.cost),
+      rating: course.rating ? Number(course.rating) : 0,
+      durationHours: course.durationHours,
+    })),
+  });
+
   // Transform all courses using the helper function
   const transformedCourses = courses.map(transformCourse);
   const transformedRecommended = recommendedCourses.map(transformCourse);
   const transformedPopular = popularCourses.map(transformCourse);
+  const transformedPartners = recommendedPartners.map(transformPartner);
 
   const userData = {
     id: fullUser.id,
@@ -335,6 +495,7 @@ export default async function TrainingPage() {
     firstName: fullUser.firstName,
     lastName: fullUser.lastName,
     role: fullUser.role,
+    name: `${fullUser.firstName} ${fullUser.lastName}`,
   };
 
   return (
@@ -345,6 +506,7 @@ export default async function TrainingPage() {
       courses={transformedCourses}
       recommendedCourses={transformedRecommended}
       popularCourses={transformedPopular}
+      recommendedPartners={transformedPartners}
       allServices={transformedAllServices}
       industries={transformedIndustries}
     />

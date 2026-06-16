@@ -10,7 +10,7 @@ import { useParams } from "next/navigation";
 import { cn } from "~/lib/cn";
 import { Badge } from "~/ui/primitives/badge";
 import { Card, CardContent } from "~/ui/primitives/card";
-import { useCart } from "~/lib/hooks/use-cart";
+import { useCart } from "~/lib/hooks/useCart";
 
 type ProductCardProps = Omit<
   React.HTMLAttributes<HTMLDivElement>,

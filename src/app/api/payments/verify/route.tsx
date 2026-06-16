@@ -1,135 +1,206 @@
 // app/api/payments/verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "~/lib/auth1";
 import { prisma } from "~/lib/db";
-
-interface PaystackVerificationResponse {
-  status: boolean;
-  message: string;
-  data: {
-    status: string;
-    reference: string;
-    amount: number;
-    currency: string;
-    transaction_date: string;
-    [key: string]: unknown;
-  };
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user || !user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { reference, applicationId } = body as {
-      reference?: string;
-      applicationId?: string;
-    };
+    const { reference, orderId } = body;
 
-    if (!reference || !applicationId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+    console.log("Verifying payment:", { reference, orderId });
 
-    // Verify payment with Paystack
-    const paystackResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const paystackData = await paystackResponse.json() as PaystackVerificationResponse;
-
-    if (!paystackData.status || paystackData.data.status !== "success") {
+    if (!reference) {
       return NextResponse.json(
-        { error: "Payment verification failed", details: paystackData.message },
+        { error: "Reference is required" },
         { status: 400 }
       );
     }
 
-    // Check if transaction already exists
-    const existingTransaction = await prisma.paymentTransaction.findUnique({
-      where: { transactionRef: reference },
-    });
-
-    if (existingTransaction && existingTransaction.status === "COMPLETED") {
-      const application = await prisma.application.findUnique({
-        where: { id: applicationId },
-      });
-      return NextResponse.json({
-        success: true,
-        message: "Payment already verified",
-        application,
-      });
+    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+    if (!paystackSecretKey) {
+      return NextResponse.json(
+        { error: "Payment gateway not configured" },
+        { status: 500 }
+      );
     }
 
-    // Convert the response to a plain object that Prisma can accept
-    const gatewayResponse = {
-      status: paystackData.data.status,
-      reference: paystackData.data.reference,
-      amount: paystackData.data.amount,
-      currency: paystackData.data.currency,
-      transaction_date: paystackData.data.transaction_date,
-    };
-
-    // Update payment transaction
-    const transaction = await prisma.paymentTransaction.update({
-      where: { transactionRef: reference },
-      data: {
-        status: "COMPLETED",
-        paidAt: new Date(),
-        gatewayResponse: gatewayResponse as any, // Use 'as any' to bypass strict type checking
+    // Verify transaction with Paystack
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${paystackSecretKey}`,
+        "Content-Type": "application/json",
       },
     });
 
-    // Update application
-    const application = await prisma.application.update({
-      where: { id: applicationId },
-      data: {
-        paymentStatus: "COMPLETED",
-        paymentAmount: paystackData.data.amount / 100,
-        paymentDate: new Date(),
-        status: "SUBMITTED",
-        submittedAt: new Date(),
-      },
-    });
+    const data = await response.json();
+    console.log("Paystack verification response:", data);
 
-    // Create notification
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        type: "PAYMENT_SUCCESS",
-        title: "Payment Successful",
-        content: `Your payment for application ${application.applicationNumber} has been confirmed.`,
-        channel: "IN_APP",
-        priority: "HIGH",
-        status: "SENT",
-        deliveredAt: new Date(),
-        metadata: {
-          applicationId: application.id,
-          applicationNumber: application.applicationNumber,
-          amount: paystackData.data.amount / 100,
+    if (!data.status || data.data.status !== "success") {
+      return NextResponse.json(
+        { error: "Payment verification failed" },
+        { status: 400 }
+      );
+    }
+
+    const transaction = data.data;
+    
+    // Update order if orderId is provided
+    if (orderId) {
+      // First check if order exists
+      const existingOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { 
+          invoice: true, 
+          orderItems: true,
+          cart: {
+            include: {
+              items: true
+            }
+          }
         },
-      },
-    });
+      });
+
+      if (!existingOrder) {
+        console.error("Order not found:", orderId);
+        return NextResponse.json(
+          { error: "Order not found" },
+          { status: 404 }
+        );
+      }
+
+      // Update order status
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: "COMPLETED",
+          paymentId: transaction.id.toString(),
+          paidAt: new Date(),
+          paymentMethod: transaction.channel === "card" ? "CARD" : "BANK_TRANSFER",
+        },
+      });
+
+      // Update invoice if exists
+      if (existingOrder.invoice) {
+        await prisma.invoice.update({
+          where: { id: existingOrder.invoice.id },
+          data: {
+            paymentStatus: "PAID",
+            paymentDate: new Date(),
+          },
+        });
+      }
+
+      // Update or create payment transaction
+      await prisma.paymentTransaction.upsert({
+        where: { transactionRef: reference },
+        update: {
+          status: "COMPLETED",
+          paidAt: new Date(),
+          gatewayResponse: transaction,
+        },
+        create: {
+          orderId: orderId,
+          userId: existingOrder.artisanId,
+          transactionRef: reference,
+          paymentGateway: "PAYSTACK",
+          amount: existingOrder.total,
+          status: "COMPLETED",
+          gatewayResponse: transaction,
+          paidAt: new Date(),
+        },
+      });
+
+      // Process each order item
+      for (const item of existingOrder.orderItems) {
+        if (item.itemType === "CERTIFICATION_APPLICATION") {
+          // Update application to SUBMITTED
+          await prisma.application.update({
+            where: { id: item.itemId },
+            data: {
+              status: "SUBMITTED",
+              paymentStatus: "COMPLETED",
+              paymentId: transaction.id.toString(),
+              paymentAmount: item.totalPrice,
+              paymentDate: new Date(),
+              submittedAt: new Date(),
+            },
+          });
+        } else if (item.itemType === "COURSE_ENROLLMENT") {
+          // Check if it's a course (not a partner)
+          const course = await prisma.course.findUnique({
+            where: { id: item.itemId },
+          });
+          
+          if (course) {
+            // Regular course enrollment
+            const enrollmentCode = `ENR-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            await prisma.enrollment.create({
+              data: {
+                courseId: item.itemId,
+                artisanId: existingOrder.artisanId,
+                enrollmentCode,
+                status: "ACTIVE",
+                paymentId: transaction.id.toString(),
+                amountPaid: item.totalPrice,
+                enrolledAt: new Date(),
+              },
+            });
+          } else {
+            // This is a partner (training provider) - update metadata
+            await prisma.orderItem.update({
+              where: { id: item.id },
+              data: {
+                metadata: {
+                  ...item.metadata,
+                  paymentStatus: "COMPLETED",
+                  paidAt: new Date().toISOString(),
+                  transactionId: transaction.id.toString(),
+                },
+              },
+            });
+          }
+        } else if (item.itemType === "CERTIFICATION_SERVICE") {
+          // Certification service - update metadata
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: {
+              metadata: {
+                ...item.metadata,
+                paymentStatus: "COMPLETED",
+                paidAt: new Date().toISOString(),
+                transactionId: transaction.id.toString(),
+                requestStatus: "PENDING",
+              },
+            },
+          });
+        }
+      }
+
+      // CLEAR THE CART - Mark all active cart items as PURCHASED
+      if (existingOrder.cart) {
+        await prisma.cartItem.updateMany({
+          where: {
+            cartId: existingOrder.cart.id,
+            status: "ACTIVE",
+          },
+          data: {
+            status: "PURCHASED",
+          },
+        });
+        
+        console.log(`Cart cleared: ${existingOrder.cart.id} - Items marked as PURCHASED`);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Payment verified successfully",
-      application: {
-        id: application.id,
-        applicationNumber: application.applicationNumber,
-        status: application.status,
-        paymentStatus: application.paymentStatus,
-      },
+      message: "Payment verified successfully and cart cleared",
     });
   } catch (error) {
     console.error("Payment verification error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      { error: error instanceof Error ? error.message : "Payment verification failed" },
       { status: 500 }
     );
   }

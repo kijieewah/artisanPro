@@ -48,6 +48,23 @@ export default async function ApplicationPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  // Check which applications are in cart - FIXED: use findFirst instead of findUnique
+  const cart = await prisma.cart.findFirst({
+    where: { artisanId: user.id },
+    include: {
+      items: {
+        where: {
+          itemType: "CERTIFICATION_APPLICATION",
+          status: "ACTIVE",
+        },
+      },
+    },
+  });
+
+  const cartItemIds = new Set(
+    cart?.items.map(item => item.itemId) || []
+  );
+
   // Transform applications for client with proper type conversion
   const transformedApplications = applications.map((app) => ({
     id: app.id,
@@ -61,6 +78,7 @@ export default async function ApplicationPage() {
     approvedAt: app.approvedAt || undefined,
     reviewedAt: app.reviewedAt || undefined,
     rejectionReason: app.rejectionReason || undefined,
+    inCart: cartItemIds.has(app.id),
     service: {
       id: app.service.id,
       name: app.service.name,
@@ -92,17 +110,19 @@ export default async function ApplicationPage() {
           status: app.paymentTransaction.status,
           paidAt: app.paymentTransaction.paidAt || undefined,
         }
-      : undefined, // Changed from null to undefined
+      : undefined,
   }));
 
   // Calculate statistics
   const stats = {
     total: transformedApplications.length,
+    draft: transformedApplications.filter((a) => a.status === "DRAFT").length,
     submitted: transformedApplications.filter((a) => a.status === "SUBMITTED").length,
     underReview: transformedApplications.filter((a) => a.status === "UNDER_REVIEW").length,
     approved: transformedApplications.filter((a) => a.status === "APPROVED").length,
     rejected: transformedApplications.filter((a) => a.status === "REJECTED").length,
     pendingInfo: transformedApplications.filter((a) => a.status === "PENDING_INFORMATION").length,
+    inCart: transformedApplications.filter((a) => a.inCart).length,
   };
 
   const userData = {

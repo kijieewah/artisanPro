@@ -97,6 +97,40 @@ enum VerificationStatus {
 }
 
 // ============================================
+// CART & ORDER ENUMS
+// ============================================
+
+enum CartItemType {
+  CERTIFICATION_APPLICATION
+  COURSE_ENROLLMENT
+  CERTIFICATION_SERVICE
+}
+
+enum CartItemStatus {
+  ACTIVE
+  REMOVED
+  PURCHASED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  BANK_TRANSFER
+  USSD
+  WALLET
+}
+
+
+
+// ============================================
 // LOCATION MODELS
 // ============================================
 
@@ -230,6 +264,10 @@ model User {
   processedRefunds      Refund[]
   apiKeys               ApiKey[]
   documents             Document[]
+  carts                 Cart[]
+  orders                Order[]
+  invoices              Invoice[]
+  receipts              Receipt[]
   
   @@index([email])
   @@index([phone])
@@ -824,12 +862,161 @@ model CourseReview {
 }
 
 // ============================================
+// CART & ORDER MODELS
+// ============================================
+
+model Cart {
+  id         String   @id @default(cuid())
+  artisanId  String  @unique @map("artisan_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  artisan    User              @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  items      CartItem[]
+  orders     Order[]
+  
+  @@index([artisanId])
+  @@map("carts")
+}
+
+model CartItem {
+  id           String        @id @default(cuid())
+  cartId       String        @map("cart_id")
+  itemType     CartItemType  @map("item_type")
+  itemId       String        @map("item_id")
+  quantity     Int           @default(1)
+  unitPrice    Decimal       @map("unit_price") @db.Decimal(10, 2)
+  totalPrice   Decimal       @map("total_price") @db.Decimal(10, 2)
+  status       CartItemStatus @default(ACTIVE)
+  metadata     Json?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  
+  cart         Cart          @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  @@index([cartId])
+  @@index([itemType, itemId])
+  @@map("cart_items")
+}
+
+model Order {
+  id                String        @id @default(cuid())
+  orderNumber       String        @unique @map("order_number")
+  artisanId         String        @map("artisan_id")
+  cartId            String?       @map("cart_id")
+  subtotal          Decimal       @db.Decimal(10, 2)
+  tax               Decimal       @default(0) @db.Decimal(10, 2)
+  total             Decimal       @db.Decimal(10, 2)
+  currency          String        @default("NGN")
+  status            OrderStatus   @default(PENDING_PAYMENT)
+  paymentMethod     PaymentMethod?
+  paymentReference  String?       @unique @map("payment_reference")
+  paymentId         String?       @map("payment_id")
+  paidAt            DateTime?     @map("paid_at")
+  invoiceNumber     String?       @unique @map("invoice_number")
+  invoiceUrl        String?       @map("invoice_url")
+  receiptUrl        String?       @map("receipt_url")
+  notes             String?       @db.Text
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  
+  artisan           User          @relation(fields: [artisanId], references: [id])
+  cart              Cart?         @relation(fields: [cartId], references: [id])
+  orderItems        OrderItem[]
+  paymentTransaction PaymentTransaction?
+  invoice           Invoice?
+  receipt           Receipt?
+  
+  @@index([artisanId])
+  @@index([orderNumber])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String        @id @default(cuid())
+  orderId      String        @map("order_id")
+  itemType     CartItemType  @map("item_type")
+  itemId       String        @map("item_id")
+  quantity     Int           @default(1)
+  unitPrice    Decimal       @map("unit_price") @db.Decimal(10, 2)
+  totalPrice   Decimal       @map("total_price") @db.Decimal(10, 2)
+  metadata     Json?
+  
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@index([orderId])
+  @@index([itemType, itemId])
+  @@map("order_items")
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  invoiceNumber   String    @unique @map("invoice_number")
+  orderId         String    @unique @map("order_id")
+  artisanId       String    @map("artisan_id")
+  artisanName     String    @map("artisan_name")
+  artisanEmail    String    @map("artisan_email")
+  artisanPhone    String?   @map("artisan_phone")
+  artisanAddress  String?   @map("artisan_address") @db.Text
+  invoiceDate     DateTime  @default(now()) @map("invoice_date")
+  dueDate         DateTime  @map("due_date")
+  subtotal        Decimal   @db.Decimal(10, 2)
+  tax             Decimal   @default(0) @db.Decimal(10, 2)
+  total           Decimal   @db.Decimal(10, 2)
+  currency        String    @default("NGN")
+  paymentStatus   String    @default("UNPAID")
+  paymentDate     DateTime? @map("payment_date")
+  pdfUrl          String?   @map("pdf_url")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  artisan        User      @relation(fields: [artisanId], references: [id])
+  receipt        Receipt?
+  
+  @@index([invoiceNumber])
+  @@index([orderId])
+  @@index([artisanId])
+  @@map("invoices")
+}
+
+model Receipt {
+  id              String    @id @default(cuid())
+  receiptNumber   String    @unique @map("receipt_number")
+  orderId         String    @unique @map("order_id")
+  invoiceId       String?   @unique @map("invoice_id")
+  artisanId       String    @map("artisan_id")
+  artisanName     String    @map("artisan_name")
+  artisanEmail    String    @map("artisan_email")
+  receiptDate     DateTime  @default(now()) @map("receipt_date")
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("NGN")
+  paymentMethod   String    @map("payment_method")
+  paymentReference String   @map("payment_reference")
+  transactionId   String    @map("transaction_id")
+  pdfUrl          String?   @map("pdf_url")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  invoice        Invoice?  @relation(fields: [invoiceId], references: [id])
+  artisan        User      @relation(fields: [artisanId], references: [id])
+  
+  @@index([receiptNumber])
+  @@index([orderId])
+  @@index([artisanId])
+  @@map("receipts")
+}
+
+// ============================================
 // PAYMENT & TRANSACTIONS
 // ============================================
 
 model PaymentTransaction {
   id               String       @id @default(cuid())
   applicationId    String?      @unique @map("application_id")
+  orderId          String?      @unique @map("order_id")
   userId           String       @map("user_id")
   transactionRef   String       @unique @map("transaction_ref")
   paymentGateway   String       @map("payment_gateway")
@@ -845,10 +1032,12 @@ model PaymentTransaction {
   updatedAt        DateTime     @updatedAt @map("updated_at")
   
   application Application? @relation(fields: [applicationId], references: [id])
+  order       Order?       @relation(fields: [orderId], references: [id])
   user        User         @relation(fields: [userId], references: [id])
   refunds     Refund[]
   
   @@index([applicationId])
+  @@index([orderId])
   @@index([userId])
   @@index([transactionRef])
   @@index([status])
@@ -988,3 +1177,26 @@ model ApiKey {
   @@index([isActive])
   @@map("api_keys")
 }
+
+
+
+
+
+// ============================================
+// APPLICATION & CERTIFICATION
+// ============================================
+
+
+
+// ============================================
+// COURSE ENROLLMENT & REVIEWS
+// ============================================
+
+
+
+// ============================================
+// CART & ORDER MODELS
+// ============================================
+
+
+
