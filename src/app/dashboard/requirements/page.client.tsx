@@ -1,4 +1,4 @@
-// app/dashboard/requirements/page.client.tsx (UPDATED - Add to Cart instead of Direct Payment)
+// app/dashboard/requirements/page.client.tsx
 "use client";
 
 import { useState } from "react";
@@ -120,6 +120,19 @@ interface RequirementsClientProps {
   application: Application | null;
 }
 
+// Define response types
+interface ApplyResponse {
+  success: boolean;
+  application?: { id: string };
+  error?: string;
+}
+
+interface CartResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
 export default function RequirementsClient({
   user,
   artisanProfile,
@@ -212,17 +225,16 @@ export default function RequirementsClient({
         }),
       });
 
-      const applyData = await applyResponse.json() as { 
-        error?: string; 
-        success?: boolean; 
-        application?: { id: string };
-      };
+      const applyData = (await applyResponse.json()) as ApplyResponse;
 
       if (!applyResponse.ok) {
         throw new Error(applyData.error || "Failed to create application");
       }
 
       const applicationId = applyData.application?.id;
+      if (!applicationId) {
+        throw new Error("No application ID returned");
+      }
 
       // Add to cart
       const cartResponse = await fetch("/api/artisan/cart", {
@@ -235,9 +247,9 @@ export default function RequirementsClient({
         }),
       });
 
-      const cartData = await cartResponse.json();
+      const cartData = (await cartResponse.json()) as CartResponse;
 
-      if (cartResponse.ok) {
+      if (cartResponse.ok && cartData.success) {
         toast.success(`${service.name} certification added to cart!`);
         // Trigger cart update event
         window.dispatchEvent(new Event("cartUpdated"));
@@ -274,7 +286,7 @@ export default function RequirementsClient({
         }),
       });
 
-      const data = await response.json() as { error?: string; success?: boolean };
+      const data = (await response.json()) as { error?: string; success?: boolean };
 
       if (response.ok) {
         toast.success("Application resubmitted for review");

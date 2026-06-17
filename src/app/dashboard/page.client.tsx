@@ -1,11 +1,10 @@
-// app/dashboard/page.client.tsx (COMPLETE FIXED VERSION with upload modal)
+// app/dashboard/page.client.tsx
 "use client";
 
-import { useState, useRef,useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-
 import {
   CheckCircle,
   XCircle,
@@ -131,6 +130,25 @@ interface DashboardClientProps {
   needsTraining: boolean;
   canApplyForCertification: boolean;
   needsToUploadDocuments: boolean;
+}
+
+// Define response types
+interface UploadResponse {
+  success?: boolean;
+  error?: string;
+  message?: string;
+}
+
+interface ApplyResponse {
+  success: boolean;
+  application?: { id: string };
+  error?: string;
+}
+
+interface CartResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
 }
 
 // Status Badge Component
@@ -308,9 +326,9 @@ const UploadModal = ({
         body: formData,
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as UploadResponse;
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         toast.success(`${requirement.name} uploaded successfully!`);
         setSelectedFile(null);
         onUploadSuccess();
@@ -495,13 +513,16 @@ export default function DashboardClient({
         }),
       });
       
-      const applyData = await applyResponse.json();
+      const applyData = (await applyResponse.json()) as ApplyResponse;
       
       if (!applyData.success) {
         throw new Error(applyData.error || "Failed to create application");
       }
 
-      const applicationId = applyData.application.id;
+      const applicationId = applyData.application?.id;
+      if (!applicationId) {
+        throw new Error("No application ID returned");
+      }
 
       // Add to cart
       const cartResponse = await fetch("/api/artisan/cart", {
@@ -514,7 +535,7 @@ export default function DashboardClient({
         }),
       });
       
-      const cartData = await cartResponse.json();
+      const cartData = (await cartResponse.json()) as CartResponse;
       
       if (cartData.success) {
         toast.success(`${currentService.name} certification added to cart!`);

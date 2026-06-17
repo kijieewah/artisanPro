@@ -44,28 +44,29 @@ export default async function SettingsPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  // Build user profile with proper null/undefined handling
   const userProfile = {
     id: userData.id,
-    email: userData.email,
-    phone: userData.phone,
-    firstName: userData.firstName,
-    lastName: userData.lastName,
+    email: userData.email || "",
+    phone: userData.phone || "",
+    firstName: userData.firstName || "",
+    lastName: userData.lastName || "",
     role: userData.role,
-    isEmailVerified: userData.isEmailVerified,
-    isPhoneVerified: userData.isPhoneVerified,
+    isEmailVerified: userData.isEmailVerified || false,
+    isPhoneVerified: userData.isPhoneVerified || false,
     createdAt: userData.createdAt,
-    lastLoginAt: userData.lastLoginAt,
+    lastLoginAt: userData.lastLoginAt || null,
     artisanProfile: userData.artisanProfile
       ? {
           id: userData.artisanProfile.id,
-          gender: userData.artisanProfile.gender,
-          dateOfBirth: userData.artisanProfile.dateOfBirth,
-          address: userData.artisanProfile.address,
-          state: userData.artisanProfile.state?.name,
-          localGovernment: userData.artisanProfile.localGovernment?.name,
-          yearsOfExperience: userData.artisanProfile.yearsOfExperience,
-          bio: userData.artisanProfile.bio,
-          skills: userData.artisanProfile.skills,
+          gender: userData.artisanProfile.gender || null,
+          dateOfBirth: userData.artisanProfile.dateOfBirth || null,
+          address: userData.artisanProfile.address || null,
+          state: userData.artisanProfile.state?.name || null,
+          localGovernment: userData.artisanProfile.localGovernment?.name || null,
+          yearsOfExperience: userData.artisanProfile.yearsOfExperience || null,
+          bio: userData.artisanProfile.bio || null,
+          skills: userData.artisanProfile.skills || null,
         }
       : null,
   };
@@ -75,8 +76,8 @@ export default async function SettingsPage() {
     sessionToken: session.sessionToken,
     createdAt: session.createdAt,
     expiresAt: session.expiresAt,
-    ipAddress: session.ipAddress,
-    userAgent: session.userAgent,
+    ipAddress: session.ipAddress || null,
+    userAgent: session.userAgent || null,
   }));
 
   const userApiKeys = apiKeys.map((key) => ({
@@ -84,8 +85,8 @@ export default async function SettingsPage() {
     name: key.name,
     key: key.key,
     createdAt: key.createdAt,
-    expiresAt: key.expiresAt,
-    lastUsedAt: key.lastUsedAt,
+    expiresAt: key.expiresAt || null,
+    lastUsedAt: key.lastUsedAt || null,
   }));
 
   return (

@@ -2,12 +2,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "~/lib/db";
 
+// Define the request body type
+interface PaymentInitializeRequest {
+  orderId?: string;
+  applicationId?: string;
+  amount: number;
+  email: string;
+  name?: string;
+  phone?: string;
+  orderNumber?: string;
+  items?: any[];
+}
+
+// Define Paystack response types
+interface PaystackResponse {
+  status: boolean;
+  message: string;
+  data: {
+    authorization_url: string;
+    access_code: string;
+    reference: string;
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as PaymentInitializeRequest;
     const { orderId, applicationId, amount, email, name, phone, orderNumber, items } = body;
 
     console.log("Payment initialization request:", { orderId, applicationId, amount, email, orderNumber });
+
+    // Validate required fields
+    if (!email) {
+      return NextResponse.json(
+        { error: "Email is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!amount || amount <= 0) {
+      return NextResponse.json(
+        { error: "Valid amount is required" },
+        { status: 400 }
+      );
+    }
 
     const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!paystackSecretKey) {
@@ -43,7 +81,16 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    const data = await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Paystack HTTP error:", response.status, errorText);
+      return NextResponse.json(
+        { error: `Payment gateway error: ${response.status}` },
+        { status: response.status }
+      );
+    }
+
+    const data = (await response.json()) as PaystackResponse;
     console.log("Paystack response:", data);
 
     if (!data.status) {

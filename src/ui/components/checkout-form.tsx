@@ -18,7 +18,7 @@ interface CheckoutFormProps {
 }
 
 export function CheckoutForm({ businessId, onBackToCart }: CheckoutFormProps) {
-  const { items: cartItems, subtotal, clearCart } = useCart();
+  const { cart, fetchCart } = useCart();
   const [isWhatsAppLoading, setIsWhatsAppLoading] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
@@ -27,6 +27,10 @@ export function CheckoutForm({ businessId, onBackToCart }: CheckoutFormProps) {
     note: "",
   });
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Get cart items and subtotal from cart object
+  const cartItems = cart?.items || [];
+  const subtotal = cart?.total || 0;
 
   // Placeholder for your business's WhatsApp number
   const businessData = {
@@ -83,6 +87,20 @@ export function CheckoutForm({ businessId, onBackToCart }: CheckoutFormProps) {
     }));
   };
 
+  const clearCart = async () => {
+    try {
+      const response = await fetch("/api/artisan/cart", {
+        method: "PATCH",
+      });
+      if (response.ok) {
+        await fetchCart();
+        window.dispatchEvent(new Event("cartUpdated"));
+      }
+    } catch (error) {
+      console.error("Clear cart error:", error);
+    }
+  };
+
   const handleWhatsAppCheckout = async () => {
     if (cartItems.length === 0) {
       alert("Your cart is empty. Please add items before checking out.");
@@ -98,11 +116,9 @@ export function CheckoutForm({ businessId, onBackToCart }: CheckoutFormProps) {
     try {
       const itemsList = cartItems
         .map((item) => {
-          const variantDetails = [];
-          if (item.size) variantDetails.push(item.size);
-          if (item.color) variantDetails.push(item.color);
-          const itemName = `${item.name}${variantDetails.length > 0 ? ` (${variantDetails.join(", ")})` : ""}`;
-          return `• ${itemName} (${item.quantity} ×  ₦${item.price.toFixed(2)})`;
+          const itemName = item.details?.name || item.itemType || "Item";
+          const unitPrice = item.unitPrice || 0;
+          return `• ${itemName} (${item.quantity} ×  ₦${unitPrice.toFixed(2)})`;
         })
         .join("\n");
 
@@ -129,7 +145,7 @@ export function CheckoutForm({ businessId, onBackToCart }: CheckoutFormProps) {
       console.error("WhatsApp checkout error:", error);
     } finally {
       setIsWhatsAppLoading(false);
-      clearCart();
+      await clearCart();
       onBackToCart();
     }
   };

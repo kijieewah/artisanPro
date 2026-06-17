@@ -3,6 +3,45 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "~/lib/auth1";
 import { prisma } from "~/lib/db";
 
+// Define types
+interface PartnerServiceWithDetails {
+  id: number;
+  serviceId: number;
+  service: {
+    id: number;
+    name: string;
+    description: string | null;
+    industry: {
+      id: number;
+      name: string;
+    } | null;
+  };
+}
+
+interface PartnerIndustry {
+  id: number;
+  industry: {
+    id: number;
+    name: string;
+  };
+}
+
+interface PartnerWithServices {
+  id: string;
+  businessName: string;
+  businessEmail: string | null;
+  businessPhone: string | null;
+  website: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  description: string | null;
+  logoUrl: string | null;
+  partnerServices: PartnerServiceWithDetails[];
+  partnerIndustries: PartnerIndustry[];
+  courses?: any[];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -130,9 +169,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Also fetch recommended partners based on similar industries (fallback)
-    let recommendedPartners: any[] = [];
+    let recommendedPartners: PartnerWithServices[] = [];
     if (certificationPartners.length === 0 && userIndustryIds.length > 0) {
-      recommendedPartners = await prisma.partnerProfile.findMany({
+      const recommended = await prisma.partnerProfile.findMany({
         where: {
           status: "ACTIVE",
           partnerIndustries: {
@@ -165,9 +204,11 @@ export async function GET(request: NextRequest) {
         },
         take: 4,
       });
+      recommendedPartners = recommended as PartnerWithServices[];
     }
 
-    const transformedPartners = certificationPartners.map((partner) => ({
+    // Transform partners with proper typing
+    const transformedPartners = certificationPartners.map((partner: PartnerWithServices) => ({
       id: partner.id,
       businessName: partner.businessName,
       businessEmail: partner.businessEmail,
@@ -180,21 +221,21 @@ export async function GET(request: NextRequest) {
       logoUrl: partner.logoUrl,
       rating: 4.5,
       isRecommended: false,
-      certificationServices: partner.partnerServices.map((ps) => ({
+      certificationServices: partner.partnerServices.map((ps: PartnerServiceWithDetails) => ({
         id: ps.id,
         serviceId: ps.serviceId,
         serviceName: ps.service.name,
-        industryName: ps.service.industry?.name,
+        industryName: ps.service.industry?.name || null,
         description: ps.service.description,
         fee: 5000,
       })),
-      industries: partner.partnerIndustries.map((pi) => ({
+      industries: partner.partnerIndustries.map((pi: PartnerIndustry) => ({
         id: pi.industry.id,
         name: pi.industry.name,
       })),
     }));
 
-    const transformedRecommended = recommendedPartners.map((partner) => ({
+    const transformedRecommended = recommendedPartners.map((partner: PartnerWithServices) => ({
       id: partner.id,
       businessName: partner.businessName,
       businessEmail: partner.businessEmail,
@@ -207,15 +248,15 @@ export async function GET(request: NextRequest) {
       logoUrl: partner.logoUrl,
       rating: 4.5,
       isRecommended: true,
-      certificationServices: partner.partnerServices.map((ps) => ({
+      certificationServices: partner.partnerServices.map((ps: PartnerServiceWithDetails) => ({
         id: ps.id,
         serviceId: ps.serviceId,
         serviceName: ps.service.name,
-        industryName: ps.service.industry?.name,
+        industryName: ps.service.industry?.name || null,
         description: ps.service.description,
         fee: 5000,
       })),
-      industries: partner.partnerIndustries.map((pi) => ({
+      industries: partner.partnerIndustries.map((pi: PartnerIndustry) => ({
         id: pi.industry.id,
         name: pi.industry.name,
       })),

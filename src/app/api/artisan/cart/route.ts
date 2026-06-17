@@ -3,6 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "~/lib/auth1";
 import { prisma } from "~/lib/db";
 
+// Types
+interface CartRequestBody {
+  itemType: "CERTIFICATION_APPLICATION" | "COURSE_ENROLLMENT" | "CERTIFICATION_SERVICE";
+  itemId: string;
+  quantity?: number;
+}
+
+interface PutRequestBody {
+  itemId: string;
+  quantity: number;
+}
+
 // GET - Fetch user's cart
 export async function GET(request: NextRequest) {
   try {
@@ -168,7 +180,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    // Use type assertion to fix the TypeScript error
+    const body = (await request.json()) as CartRequestBody;
     const { itemType, itemId, quantity = 1 } = body;
 
     if (!itemType || !itemId) {
@@ -399,22 +412,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check if item already in cart - use the validItemType which is now the correct enum value
+    // Check if item already in cart
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         cartId: cart.id,
-        itemType: validItemType,  // This is now the correct enum value
+        itemType: validItemType,
         itemId: itemId,
         status: "ACTIVE",
       },
     });
 
     if (existingItem) {
+      // Convert Decimal to number for calculation
+      const existingUnitPrice = Number(existingItem.unitPrice);
+      
       const updatedItem = await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: {
           quantity: existingItem.quantity + quantity,
-          totalPrice: (existingItem.quantity + quantity) * unitPrice,
+          totalPrice: (existingItem.quantity + quantity) * existingUnitPrice,
         },
       });
       return NextResponse.json({ 
@@ -467,7 +483,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    // Use type assertion for PUT as well
+    const body = (await request.json()) as PutRequestBody;
     const { itemId, quantity } = body;
 
     if (!itemId || quantity === undefined) {
@@ -511,11 +528,14 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    // Convert Decimal to number before multiplication
+    const unitPrice = Number(cartItem.unitPrice);
+    
     const updatedItem = await prisma.cartItem.update({
       where: { id: itemId },
       data: {
         quantity,
-        totalPrice: quantity * cartItem.unitPrice,
+        totalPrice: quantity * unitPrice,
       },
     });
 

@@ -18,6 +18,28 @@ interface CartItem {
   details: any;
 }
 
+// Define response types
+interface CartResponse {
+  success: boolean;
+  cart: {
+    items: CartItem[];
+    total: number;
+    itemCount: number;
+  };
+  error?: string;
+}
+
+interface CheckoutResponse {
+  success: boolean;
+  redirectUrl?: string;
+  error?: string;
+  order?: {
+    id: string;
+    orderNumber: string;
+    total: number;
+  };
+}
+
 export default function CartDrawer() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +50,7 @@ export default function CartDrawer() {
   const fetchCart = useCallback(async () => {
     try {
       const res = await fetch("/api/artisan/cart");
-      const data = await res.json();
+      const data = (await res.json()) as CartResponse;
       if (data.success) setCart(data.cart);
     } catch (error) {
       console.error("Failed to fetch cart:", error);
@@ -49,46 +71,55 @@ export default function CartDrawer() {
   }, [fetchCart]);
 
   const updateQuantity = async (itemId: string, quantity: number) => {
-    const res = await fetch("/api/artisan/cart", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId, quantity }) });
-    if (res.ok) { fetchCart(); window.dispatchEvent(new Event("cartUpdated")); }
+    const res = await fetch("/api/artisan/cart", { 
+      method: "PUT", 
+      headers: { "Content-Type": "application/json" }, 
+      body: JSON.stringify({ itemId, quantity }) 
+    });
+    if (res.ok) { 
+      fetchCart(); 
+      window.dispatchEvent(new Event("cartUpdated")); 
+    }
   };
 
   const removeItem = async (itemId: string) => {
     const res = await fetch(`/api/artisan/cart?itemId=${itemId}`, { method: "DELETE" });
-    if (res.ok) { fetchCart(); window.dispatchEvent(new Event("cartUpdated")); toast.success("Item removed"); }
+    if (res.ok) { 
+      fetchCart(); 
+      window.dispatchEvent(new Event("cartUpdated")); 
+      toast.success("Item removed"); 
+    }
   };
 
-// In CartDrawer.tsx, update the handleCheckout function:
-
-const handleCheckout = async () => {
-  setCheckoutLoading(true);
-  try {
-    const res = await fetch("/api/artisan/checkout", { 
-      method: "POST",
-      headers: { "Content-Type": "application/json" }
-    });
-    const data = await res.json();
-    
-    if (data.success && data.redirectUrl) {
-      // Clear local cart state immediately for better UX
-      setCart({ items: [], total: 0, itemCount: 0 });
-      // Close the drawer
-      setIsOpen(false);
-      // Dispatch cart update event
-      window.dispatchEvent(new Event("cartUpdated"));
-      // Navigate to payment
-      router.push(data.redirectUrl);
-    } else {
-      throw new Error(data.error || "Checkout failed");
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/artisan/checkout", { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = (await res.json()) as CheckoutResponse;
+      
+      if (data.success && data.redirectUrl) {
+        // Clear local cart state immediately for better UX
+        setCart({ items: [], total: 0, itemCount: 0 });
+        // Close the drawer
+        setIsOpen(false);
+        // Dispatch cart update event
+        window.dispatchEvent(new Event("cartUpdated"));
+        // Navigate to payment
+        router.push(data.redirectUrl);
+      } else {
+        throw new Error(data.error || "Checkout failed");
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+      // Refresh cart to show current state
+      fetchCart();
+    } finally {
+      setCheckoutLoading(false);
     }
-  } catch (error: any) {
-    toast.error(error.message);
-    // Refresh cart to show current state
-    fetchCart();
-  } finally {
-    setCheckoutLoading(false);
-  }
-};
+  };
 
   const formatAmount = (amount: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount);
 

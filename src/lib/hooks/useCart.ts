@@ -22,6 +22,19 @@ interface Cart {
   itemCount: number;
 }
 
+// Define response types
+interface CartResponse {
+  success: boolean;
+  cart: Cart;
+  error?: string;
+}
+
+interface AddToCartResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
 export function useCart() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +44,7 @@ export function useCart() {
     setLoading(true);
     try {
       const response = await fetch("/api/artisan/cart");
-      const data = await response.json();
+      const data = (await response.json()) as CartResponse;
       if (data.success) {
         setCart(data.cart);
         setItemCount(data.cart.itemCount);
@@ -63,13 +76,13 @@ export function useCart() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itemType, itemId, quantity }),
       });
-      const data = await response.json();
+      const data = (await response.json()) as AddToCartResponse;
       if (data.success) {
         await fetchCart();
         window.dispatchEvent(new Event("cartUpdated"));
         return { success: true };
       }
-      return { success: false, error: data.error };
+      return { success: false, error: data.error || "Failed to add to cart" };
     } catch (error) {
       console.error("Add to cart error:", error);
       return { success: false, error: "Failed to add to cart" };

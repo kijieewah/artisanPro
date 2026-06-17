@@ -12,6 +12,17 @@ interface PaymentPageProps {
   }>;
 }
 
+// Define types
+interface CartItem {
+  id: string;
+  name: string;
+  serviceName?: string;
+  partnerName?: string;
+  type: string;
+  applicationNumber?: string;
+  amount: number;
+}
+
 export default async function PaymentPage({ searchParams }: PaymentPageProps) {
   const user = await getCurrentUser();
   
@@ -42,7 +53,7 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
     redirect("/auth/sign-in");
   }
 
-  let cartItems = [];
+  let cartItems: CartItem[] = [];
   let paymentAmount = 0;
   let orderNumber = "";
   let actualOrderId = orderId;
@@ -62,7 +73,7 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
 
     // Get cart items with details
     for (const item of order.orderItems) {
-      let itemDetails = null;
+      let itemDetails: CartItem | null = null;
       
       if (item.itemType === "CERTIFICATION_APPLICATION") {
         const application = await prisma.application.findUnique({
@@ -115,7 +126,7 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
         });
         if (partnerService) {
           itemDetails = {
-            id: partnerService.id,
+            id: partnerService.id.toString(), // Convert number to string
             name: `${partnerService.service.name} Certification`,
             serviceName: partnerService.service.name,
             partnerName: partnerService.partner.businessName,

@@ -56,12 +56,11 @@ export function Cart({
   businessName,
 }: CartProps) {
   const {
-    clearCart,
+    cart,
+    loading,
     itemCount: totalItems,
-    items: cartItems,
-    removeItem,
-    subtotal,
-    updateQuantity,
+    fetchCart,
+    addToCart,
   } = useCart();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isMounted, setIsMounted] = React.useState(false);
@@ -72,22 +71,60 @@ export function Cart({
     setIsMounted(true);
   }, []);
 
-  const handleUpdateQuantity = (
-    id: string,
+  // Get cart items from the cart object
+  const cartItems = cart?.items || [];
+  const subtotal = cart?.total || 0;
+
+  const handleUpdateQuantity = async (
+    itemId: string,
     newQuantity: number,
-    size?: string,
-    color?: string,
   ) => {
     if (newQuantity < 1) return;
-    updateQuantity(id, newQuantity, size, color);
+    
+    try {
+      const response = await fetch("/api/artisan/cart", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId, quantity: newQuantity }),
+      });
+      
+      if (response.ok) {
+        await fetchCart();
+        window.dispatchEvent(new Event("cartUpdated"));
+      }
+    } catch (error) {
+      console.error("Update quantity error:", error);
+    }
   };
 
-  const handleRemoveItem = (id: string, size?: string, color?: string) => {
-    removeItem(id, size, color);
+  const handleRemoveItem = async (itemId: string) => {
+    try {
+      const response = await fetch(`/api/artisan/cart?itemId=${itemId}`, {
+        method: "DELETE",
+      });
+      
+      if (response.ok) {
+        await fetchCart();
+        window.dispatchEvent(new Event("cartUpdated"));
+      }
+    } catch (error) {
+      console.error("Remove item error:", error);
+    }
   };
 
-  const handleClearCart = () => {
-    clearCart();
+  const handleClearCart = async () => {
+    try {
+      const response = await fetch("/api/artisan/cart", {
+        method: "PATCH",
+      });
+      
+      if (response.ok) {
+        await fetchCart();
+        window.dispatchEvent(new Event("cartUpdated"));
+      }
+    } catch (error) {
+      console.error("Clear cart error:", error);
+    }
   };
 
   const handleCheckout = () => {
@@ -97,6 +134,8 @@ export function Cart({
     // Navigate to checkout page
     if (businessName) {
       window.location.href = `/${businessName}/checkout`;
+    } else {
+      window.location.href = `/dashboard/payment`;
     }
   };
 
@@ -171,18 +210,18 @@ export function Cart({
           <div className="space-y-4">
             {cartItems.map((item) => (
               <div
-                key={`${item.id}-${item.size || ""}-${item.color || ""}`}
+                key={item.id}
                 className="group relative flex rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent/50"
               >
                 <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded">
                   <Image
-                    alt={item.name}
+                    alt={item.details?.name || item.itemType || "Item"}
                     className="object-cover"
                     fill
                     src={
-                      isInvalidImageUrl(item.image)
+                      isInvalidImageUrl(item.details?.image)
                         ? "/images/placeholder.svg"
-                        : item.image
+                        : item.details?.image || "/images/placeholder.svg"
                     }
                   />
                 </div>
@@ -190,13 +229,11 @@ export function Cart({
                   <div>
                     <div className="flex items-start justify-between">
                       <div className="line-clamp-2 text-sm font-medium group-hover:text-primary">
-                        {item.name}
+                        {item.details?.name || item.itemType || "Item"}
                       </div>
                       <button
                         className="-mt-1 -mr-1 ml-2 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-                        onClick={() =>
-                          handleRemoveItem(item.id, item.size, item.color)
-                        }
+                        onClick={() => handleRemoveItem(item.id)}
                         type="button"
                       >
                         <X className="h-4 w-4" />
@@ -204,9 +241,10 @@ export function Cart({
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {item.category}
-                      {item.size && ` • Size: ${item.size}`}
-                      {item.color && ` • Color: ${item.color}`}
+                      {item.itemType === "CERTIFICATION_APPLICATION" && "Certification"}
+                      {item.itemType === "COURSE_ENROLLMENT" && "Course"}
+                      {item.itemType === "CERTIFICATION_SERVICE" && "Certification Service"}
+                      {item.details?.serviceName && ` • ${item.details.serviceName}`}
                     </p>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
@@ -215,12 +253,7 @@ export function Cart({
                         className="flex h-8 w-8 items-center justify-center rounded-l-md border-r text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         disabled={item.quantity <= 1}
                         onClick={() =>
-                          handleUpdateQuantity(
-                            item.id,
-                            item.quantity - 1,
-                            item.size,
-                            item.color,
-                          )
+                          handleUpdateQuantity(item.id, item.quantity - 1)
                         }
                         type="button"
                       >
@@ -233,12 +266,7 @@ export function Cart({
                       <button
                         className="flex h-8 w-8 items-center justify-center rounded-r-md border-l text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         onClick={() =>
-                          handleUpdateQuantity(
-                            item.id,
-                            item.quantity + 1,
-                            item.size,
-                            item.color,
-                          )
+                          handleUpdateQuantity(item.id, item.quantity + 1)
                         }
                         type="button"
                       >
@@ -247,7 +275,7 @@ export function Cart({
                       </button>
                     </div>
                     <div className="text-sm font-medium">
-                      ₦{(item.price * item.quantity).toFixed(2)}
+                      ₦{(item.unitPrice * item.quantity).toFixed(2)}
                     </div>
                   </div>
                 </div>

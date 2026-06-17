@@ -6,11 +6,18 @@ import { toast } from "sonner";
 import { ShoppingCart, Loader2 } from "lucide-react";
 
 interface AddToCartButtonProps {
-  itemType: "CERTIFICATION_APPLICATION" | "COURSE_ENROLLMENT";
+  itemType: "CERTIFICATION_APPLICATION" | "COURSE_ENROLLMENT" | "CERTIFICATION_SERVICE";
   itemId: string;
   buttonText?: string;
   className?: string;
   onSuccess?: () => void;
+}
+
+// Define response type
+interface CartResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
 }
 
 const colors = {
@@ -39,10 +46,11 @@ export default function AddToCartButton({
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as CartResponse;
 
       if (data.success) {
         toast.success("Added to cart successfully!");
+        window.dispatchEvent(new Event("cartUpdated"));
         onSuccess?.();
       } else {
         toast.error(data.error || "Failed to add to cart");

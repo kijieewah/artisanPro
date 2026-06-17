@@ -3,11 +3,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "~/lib/auth1";
 import { prisma } from "~/lib/db";
 
+// Define the user type with optional fields
+interface UserWithProfile {
+  id: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  artisanProfile?: {
+    id: string;
+    phone?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    businessName?: string | null;
+    [key: string]: any;
+  } | null;
+  [key: string]: any;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get full user profile with artisan details
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        artisanProfile: true,
+      },
+    }) as UserWithProfile | null;
+
+    if (!userWithProfile) {
+      return NextResponse.json(
+        { success: false, error: "User profile not found" },
+        { status: 404 }
+      );
     }
 
     // Get cart with active items
@@ -48,17 +81,22 @@ export async function POST(request: NextRequest) {
         status: "PENDING_PAYMENT",
         invoiceNumber,
         orderItems: {
-          create: cart.items.map(item => ({
-            itemType: item.itemType,
-            itemId: item.itemId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            metadata: item.metadata,
+          create: cart.items.map(({ itemType, itemId, quantity, unitPrice, totalPrice }) => ({
+            itemType,
+            itemId,
+            quantity,
+            unitPrice,
+            totalPrice,
           })),
         },
       },
     });
+
+    // Get user details for invoice
+    const firstName = userWithProfile.firstName || userWithProfile.artisanProfile?.firstName || 'User';
+    const lastName = userWithProfile.lastName || userWithProfile.artisanProfile?.lastName || '';
+    const email = userWithProfile.email || '';
+    const phone = userWithProfile.phone || userWithProfile.artisanProfile?.phone || '';
 
     // Create invoice
     await prisma.invoice.create({
@@ -66,9 +104,9 @@ export async function POST(request: NextRequest) {
         invoiceNumber,
         orderId: order.id,
         artisanId: user.id,
-        artisanName: `${user.firstName} ${user.lastName}`,
-        artisanEmail: user.email,
-        artisanPhone: user.phone || "",
+        artisanName: `${firstName} ${lastName}`.trim() || 'Unknown User',
+        artisanEmail: email,
+        artisanPhone: phone,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         subtotal,
         tax,
@@ -77,7 +115,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // **FIX: Clear the cart items after successful checkout**
+    // Clear the cart items after successful checkout
     await prisma.cartItem.updateMany({
       where: {
         cartId: cart.id,

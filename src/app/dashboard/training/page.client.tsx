@@ -117,6 +117,13 @@ interface TrainingClientProps {
   industries: Industry[];
 }
 
+// Define response type
+interface CartResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
 export default function TrainingClient({
   user,
   artisanProfile,
@@ -194,7 +201,7 @@ export default function TrainingClient({
           quantity: 1,
         }),
       });
-      const data = await response.json();
+      const data = (await response.json()) as CartResponse;
       
       if (data.success) {
         toast.success(`${partner.businessName} training added to cart!`);
@@ -302,7 +309,7 @@ export default function TrainingClient({
     const matchesSearch =
       searchQuery === "" ||
       course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (course.description && course.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesService =
       selectedService === "all" ||
       course.primaryService?.id.toString() === selectedService;

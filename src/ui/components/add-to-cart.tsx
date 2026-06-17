@@ -20,26 +20,46 @@ export function AddToCart({
   quantity: number;
   setQuantity: React.Dispatch<React.SetStateAction<number>>;
 }) {
-  const { addItem, getItemQuantity } = useCart();
+  const { addToCart } = useCart();
   const [wishlisted, setWishlisted] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
-  const handleAddToCart = () => {
-    addItem(
-      {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        category: product.category,
-        selectedVariant: selectedVariant,
-        selectedColor: selectedColor,
-      },
-      quantity,
-    );
+  const handleAddToCart = async () => {
+    if (!product.id) {
+      toast.error("Invalid product");
+      return;
+    }
+
+    setIsAdding(true);
+    try {
+      // Determine the item type based on the product
+      let itemType = "CERTIFICATION_SERVICE"; // Default
+      
+      if (product.type === "certification") {
+        itemType = "CERTIFICATION_APPLICATION";
+      } else if (product.type === "course" || product.type === "training") {
+        itemType = "COURSE_ENROLLMENT";
+      }
+
+      const result = await addToCart(
+        itemType,
+        product.id,
+        quantity
+      );
+
+      if (result.success) {
+        toast.success(`${product.name || "Item"} added to cart!`);
+        window.dispatchEvent(new Event("cartUpdated"));
+      } else {
+        toast.error(result.error || "Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      toast.error("Failed to add to cart");
+    } finally {
+      setIsAdding(false);
+    }
   };
-
-  const itemIdentifier = `${product.id}-${selectedVariant?.size || "default"}-${selectedColor || "default"}`;
-  const currentQuantity = getItemQuantity(itemIdentifier);
 
   return (
     <>
@@ -65,12 +85,10 @@ export function AddToCart({
         <Button
           className="flex-1 gap-2 py-3 text-base"
           onClick={handleAddToCart}
-          disabled={!product.stock}
+          disabled={!product.stock || isAdding}
         >
           <ShoppingCart className="h-5 w-5" />
-          {currentQuantity > 0
-            ? `Add More (${currentQuantity} in cart)`
-            : "Add to Cart"}
+          {isAdding ? "Adding..." : "Add to Cart"}
         </Button>
         <Button
           variant="outline"

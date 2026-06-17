@@ -7,14 +7,7 @@ import Image from "next/image";
 import { 
   Building2, 
   Star, 
-  Briefcase, 
-  Users, 
-  Award,
   ChevronRight,
-  MapPin,
-  Phone,
-  Mail,
-  Globe
 } from "lucide-react";
 
 const colors = {
@@ -37,6 +30,14 @@ interface PartnersSectionProps {
   featuredPartners?: Partner[];
 }
 
+// Define response type
+interface PartnersResponse {
+  success: boolean;
+  featured?: Partner[];
+  partners?: Partner[];
+  error?: string;
+}
+
 export default function PartnersSection({ featuredPartners: initialPartners }: PartnersSectionProps) {
   const [partners, setPartners] = useState<Partner[]>(initialPartners || []);
   const [loading, setLoading] = useState(!initialPartners);
@@ -50,9 +51,9 @@ export default function PartnersSection({ featuredPartners: initialPartners }: P
   const fetchPartners = async () => {
     try {
       const response = await fetch("/api/partners?limit=6");
-      const data = await response.json();
+      const data = (await response.json()) as PartnersResponse;
       if (data.success) {
-        setPartners(data.featured || []);
+        setPartners(data.featured || data.partners || []);
       }
     } catch (error) {
       console.error("Error fetching partners:", error);

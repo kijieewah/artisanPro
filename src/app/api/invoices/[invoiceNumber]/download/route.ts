@@ -31,10 +31,26 @@ export async function GET(
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
+    // Check if user is admin - use type assertion if you're sure the field exists
+    const userRole = (user as any).role;
+    const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
+
     // Verify ownership
-    if (invoice.artisanId !== user.id && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    if (invoice.artisanId !== user.id && !isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
+
+    // Helper function to safely get item name from metadata
+    const getItemName = (metadata: any): string => {
+      if (!metadata || typeof metadata !== 'object') return "Item";
+      
+      // Safely access properties
+      const serviceName = metadata.serviceName;
+      const courseName = metadata.courseName;
+      const itemName = metadata.name;
+      
+      return serviceName || courseName || itemName || "Item";
+    };
 
     // Generate HTML invoice
     const html = `
@@ -111,6 +127,15 @@ export async function GET(
             color: #999;
             font-size: 12px;
           }
+          .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            background: ${invoice.paymentStatus === 'PAID' ? '#10b981' : invoice.paymentStatus === 'PARTIALLY_PAID' ? '#f59e0b' : '#ef4444'};
+            color: white;
+          }
         </style>
       </head>
       <body>
@@ -146,7 +171,7 @@ export async function GET(
                       <strong>Order #:</strong><br>
                       ${invoice.order.orderNumber}<br>
                       <strong>Payment Status:</strong><br>
-                      ${invoice.paymentStatus}
+                      <span class="status-badge">${invoice.paymentStatus}</span>
                     </td>
                   </tr>
                 </table>
@@ -159,7 +184,7 @@ export async function GET(
             ${invoice.order.orderItems.map(item => `
               <tr class="item">
                 <td>
-                  ${item.metadata?.serviceName || item.metadata?.courseName || "Item"}<br>
+                  ${getItemName(item.metadata)}<br>
                   <small>Quantity: ${item.quantity}</small>
                 </td>
                 <td>₦${Number(item.totalPrice).toLocaleString()}</td>
@@ -175,14 +200,17 @@ export async function GET(
             </tr>
           </table>
           <div class="footer">
-            Thank you for choosing ArtisanPro!
+            <p>Thank you for choosing ArtisanPro!</p>
+            <p style="font-size: 10px; color: #999;">
+              This is a system-generated invoice. For any queries, please contact our support team.
+            </p>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    // Return HTML response (in production, use a PDF generation library)
+    // Return HTML response
     return new NextResponse(html, {
       headers: {
         "Content-Type": "text/html",

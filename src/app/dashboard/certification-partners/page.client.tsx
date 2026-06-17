@@ -99,6 +99,13 @@ interface CertificationPartnersClientProps {
   allServices: Service[];
 }
 
+// Define response type
+interface AddToCartResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
 export default function CertificationPartnersClient({
   user,
   partners,
@@ -136,7 +143,7 @@ export default function CertificationPartnersClient({
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as AddToCartResponse;
 
       if (data.success) {
         toast.success(`${certificationService.serviceName} certification added to cart!`);

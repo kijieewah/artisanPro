@@ -1,4 +1,4 @@
-// app/dashboard/settings/page.client.tsx
+// app/dashboard/settings/page.client.tsx (FIXED SECTION)
 "use client";
 
 import { useState, useEffect } from "react";
@@ -51,6 +51,30 @@ const colors = {
   light: "#f8f9fa",
   dark: "#343a40",
 };
+
+// Define response types
+interface ApiResponse {
+  success?: boolean;
+  error?: string;
+  message?: string;
+}
+
+interface ProfileResponse extends ApiResponse {
+  user?: any;
+}
+
+interface PasswordResponse extends ApiResponse {
+  success?: boolean;
+}
+
+interface SessionResponse extends ApiResponse {
+  success?: boolean;
+}
+
+interface ApiKeyResponse extends ApiResponse {
+  apiKey?: string;
+  keyInfo?: any;
+}
 
 interface UserProfile {
   id: string;
@@ -201,6 +225,11 @@ export default function SettingsClient({
   const handleUpdateProfile = async () => {
     setIsLoading(true);
     try {
+      // Fix: Properly type the skills mapping with explicit parameter type
+      const skillsArray = profileForm.skills 
+        ? profileForm.skills.split(",").map((s: string) => s.trim()).filter((s: string) => s !== "")
+        : [];
+      
       const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -213,11 +242,11 @@ export default function SettingsClient({
           address: profileForm.address,
           yearsOfExperience: profileForm.yearsOfExperience,
           bio: profileForm.bio,
-          skills: profileForm.skills.split(",").map(s => s.trim()).filter(s => s),
+          skills: skillsArray,
         }),
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as ProfileResponse;
       
       if (response.ok) {
         toast.success("Profile updated successfully");
@@ -257,7 +286,7 @@ export default function SettingsClient({
         }),
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as PasswordResponse;
       
       if (response.ok) {
         toast.success("Password changed successfully");
@@ -282,7 +311,7 @@ export default function SettingsClient({
         method: "DELETE",
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as SessionResponse;
       
       if (response.ok) {
         toast.success("Session revoked successfully");
@@ -306,7 +335,7 @@ export default function SettingsClient({
         method: "POST",
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as SessionResponse;
       
       if (response.ok) {
         toast.success("All other sessions revoked");
@@ -337,11 +366,13 @@ export default function SettingsClient({
         body: JSON.stringify({ name: apiKeyForm.name }),
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as ApiKeyResponse;
       
       if (response.ok) {
-        setNewApiKey(data.apiKey);
-        setApiKeys([data.keyInfo, ...apiKeys]);
+        setNewApiKey(data.apiKey || null);
+        if (data.keyInfo) {
+          setApiKeys([data.keyInfo, ...apiKeys]);
+        }
         toast.success("API key generated successfully");
         setApiKeyForm({ name: "" });
       } else {
@@ -363,7 +394,7 @@ export default function SettingsClient({
         method: "DELETE",
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as ApiResponse;
       
       if (response.ok) {
         toast.success("API key deleted successfully");
@@ -395,7 +426,7 @@ export default function SettingsClient({
         body: JSON.stringify(notifications),
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as ApiResponse;
       
       if (response.ok) {
         toast.success("Notification settings updated");
@@ -418,7 +449,7 @@ export default function SettingsClient({
         method: "DELETE",
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as ApiResponse;
       
       if (response.ok) {
         toast.success("Account deleted successfully");

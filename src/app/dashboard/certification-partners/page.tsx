@@ -4,6 +4,60 @@ import { prisma } from "~/lib/db";
 import { redirect } from "next/navigation";
 import CertificationPartnersClient from "./page.client";
 
+// Define types
+interface PartnerService {
+  id: number;
+  serviceId: number;
+  service: {
+    id: number;
+    name: string;
+    description: string | null;
+    industry: {
+      id: number;
+      name: string;
+    } | null;
+  };
+}
+
+interface PartnerIndustry {
+  id: number;
+  industry: {
+    id: number;
+    name: string;
+  };
+}
+
+interface PartnerWithServices {
+  id: string;
+  businessName: string;
+  businessEmail: string | null;
+  businessPhone: string | null;
+  website: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  description: string | null;
+  logoUrl: string | null;
+  partnerServices: PartnerService[];
+  partnerIndustries: PartnerIndustry[];
+}
+
+// Define Industry type with services
+interface Industry {
+  id: number;
+  name: string;
+  description: string | null;
+  status: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  services: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    status: boolean;
+  }>;
+}
+
 export default async function CertificationPartnersPage() {
   const user = await getCurrentUser();
 
@@ -11,8 +65,8 @@ export default async function CertificationPartnersPage() {
     redirect("/auth/sign-in");
   }
 
-  // Fetch user's services and industries
-  const userWithServices = await prisma.user.findUnique({
+  // Fetch user with full profile including name fields
+  const userWithProfile = await prisma.user.findUnique({
     where: { id: user.id },
     include: {
       artisanProfile: {
@@ -31,7 +85,11 @@ export default async function CertificationPartnersPage() {
     },
   });
 
-  const userServices = userWithServices?.artisanProfile?.artisanServices.map(
+  if (!userWithProfile) {
+    redirect("/auth/sign-in");
+  }
+
+  const userServices = userWithProfile?.artisanProfile?.artisanServices.map(
     (as) => as.service
   ) || [];
 
@@ -91,9 +149,9 @@ export default async function CertificationPartnersPage() {
   });
 
   // Fetch recommended partners from same industries (if not many matches)
-  let recommendedPartners: any[] = [];
+  let recommendedPartners: PartnerWithServices[] = [];
   if (certificationPartners.length < 3 && userIndustryIds.length > 0) {
-    recommendedPartners = await prisma.partnerProfile.findMany({
+    const recommended = await prisma.partnerProfile.findMany({
       where: {
         status: "ACTIVE",
         partnerIndustries: {
@@ -124,6 +182,7 @@ export default async function CertificationPartnersPage() {
       },
       take: 4,
     });
+    recommendedPartners = recommended as PartnerWithServices[];
   }
 
   // Fetch all industries for filtering
@@ -146,76 +205,102 @@ export default async function CertificationPartnersPage() {
     orderBy: { name: "asc" },
   });
 
-  const transformedPartners = certificationPartners.map((partner) => ({
+  // Transform partners with proper typing
+  const transformedPartners = certificationPartners.map((partner: PartnerWithServices) => ({
     id: partner.id,
     businessName: partner.businessName,
-    businessEmail: partner.businessEmail,
-    businessPhone: partner.businessPhone,
+    businessEmail: partner.businessEmail || "",
+    businessPhone: partner.businessPhone || "",
     website: partner.website,
-    address: partner.address,
-    city: partner.city,
-    state: partner.state,
+    address: partner.address || "",
+    city: partner.city || "",
+    state: partner.state || "",
     description: partner.description,
     logoUrl: partner.logoUrl,
     rating: 4.5,
     isRecommended: false,
-    matchType: partner.partnerServices.some(ps => userServiceIds.includes(ps.serviceId)) 
+    matchType: partner.partnerServices.some((ps: PartnerService) => userServiceIds.includes(ps.serviceId)) 
       ? "service" 
       : "industry",
-    certificationServices: partner.partnerServices.map((ps) => ({
+    certificationServices: partner.partnerServices.map((ps: PartnerService) => ({
       id: ps.id,
       serviceId: ps.serviceId,
       serviceName: ps.service.name,
-      industryName: ps.service.industry?.name,
+      industryName: ps.service.industry?.name || "",
       description: ps.service.description,
       fee: 5000,
     })),
-    industries: partner.partnerIndustries.map((pi) => ({
+    industries: partner.partnerIndustries.map((pi: PartnerIndustry) => ({
       id: pi.industry.id,
       name: pi.industry.name,
     })),
   }));
 
-  const transformedRecommended = recommendedPartners.map((partner) => ({
+  const transformedRecommended = recommendedPartners.map((partner: PartnerWithServices) => ({
     id: partner.id,
     businessName: partner.businessName,
-    businessEmail: partner.businessEmail,
-    businessPhone: partner.businessPhone,
+    businessEmail: partner.businessEmail || "",
+    businessPhone: partner.businessPhone || "",
     website: partner.website,
-    address: partner.address,
-    city: partner.city,
-    state: partner.state,
+    address: partner.address || "",
+    city: partner.city || "",
+    state: partner.state || "",
     description: partner.description,
     logoUrl: partner.logoUrl,
     rating: 4.5,
     isRecommended: true,
     matchType: "industry",
-    certificationServices: partner.partnerServices.map((ps) => ({
+    certificationServices: partner.partnerServices.map((ps: PartnerService) => ({
       id: ps.id,
       serviceId: ps.serviceId,
       serviceName: ps.service.name,
-      industryName: ps.service.industry?.name,
+      industryName: ps.service.industry?.name || "",
       description: ps.service.description,
       fee: 5000,
     })),
-    industries: partner.partnerIndustries.map((pi) => ({
+    industries: partner.partnerIndustries.map((pi: PartnerIndustry) => ({
       id: pi.industry.id,
       name: pi.industry.name,
     })),
   }));
 
+  // Get user data from the fetched profile
   const userData = {
-    id: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    name: `${user.firstName} ${user.lastName}`,
+    id: userWithProfile.id,
+    firstName: userWithProfile.firstName || "",
+    lastName: userWithProfile.lastName || "",
+    email: userWithProfile.email || "",
+    name: `${userWithProfile.firstName || ""} ${userWithProfile.lastName || ""}`.trim(),
   };
 
-  // Get unique industries from user services for display
-  const userIndustries = [...new Map(
-    userServices.map(service => [service.industry.id, service.industry])
-  ).values()];
+  // Get unique industries from user services with services array
+  const userIndustriesMap = new Map<number, Industry>();
+  userServices.forEach(service => {
+    const industry = service.industry;
+    if (!userIndustriesMap.has(industry.id)) {
+      userIndustriesMap.set(industry.id, {
+        id: industry.id,
+        name: industry.name,
+        description: industry.description,
+        status: industry.status,
+        createdAt: industry.createdAt,
+        updatedAt: industry.updatedAt,
+        services: [],
+      });
+    }
+    // Add this service to the industry's services
+    const existingIndustry = userIndustriesMap.get(industry.id)!;
+    if (!existingIndustry.services.find(s => s.id === service.id)) {
+      existingIndustry.services.push({
+        id: service.id,
+        name: service.name,
+        description: service.description,
+        status: service.status,
+      });
+    }
+  });
+  
+  const userIndustries = Array.from(userIndustriesMap.values());
 
   return (
     <CertificationPartnersClient

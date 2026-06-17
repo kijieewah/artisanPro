@@ -56,6 +56,15 @@ interface PaymentClientProps {
   itemType: string;
 }
 
+// Define response types
+interface PaymentInitializeResponse {
+  success: boolean;
+  reference: string;
+  authorization_url?: string;
+  access_code?: string;
+  error?: string;
+}
+
 export default function PaymentClient({
   user,
   items,
@@ -154,9 +163,9 @@ export default function PaymentClient({
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as PaymentInitializeResponse;
 
-      if (!response.ok) {
+      if (!response.ok || !data.success) {
         throw new Error(data.error || "Failed to initialize payment");
       }
 

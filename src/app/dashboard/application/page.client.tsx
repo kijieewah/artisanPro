@@ -114,6 +114,24 @@ interface ApplicationClientProps {
   stats: Stats;
 }
 
+// Define response types
+interface CartResponse {
+  success: boolean;
+  cart?: {
+    items: Array<{
+      id: string;
+      itemId: string;
+      itemType: string;
+    }>;
+  };
+  error?: string;
+}
+
+interface AddToCartResponse {
+  success: boolean;
+  error?: string;
+}
+
 export default function ApplicationClient({
   user,
   artisanProfile,
@@ -169,7 +187,7 @@ export default function ApplicationClient({
           quantity: 1,
         }),
       });
-      const data = await response.json();
+      const data = (await response.json()) as AddToCartResponse;
       
       if (data.success) {
         toast.success(`${application.service.name} certification added to cart!`);
@@ -190,7 +208,7 @@ export default function ApplicationClient({
     try {
       // Find cart item
       const cartResponse = await fetch("/api/artisan/cart");
-      const cartData = await cartResponse.json();
+      const cartData = (await cartResponse.json()) as CartResponse;
       
       if (cartData.success && cartData.cart?.items) {
         const cartItem = cartData.cart.items.find(
@@ -201,7 +219,7 @@ export default function ApplicationClient({
           const response = await fetch(`/api/artisan/cart?itemId=${cartItem.id}`, {
             method: "DELETE",
           });
-          const data = await response.json();
+          const data = (await response.json()) as AddToCartResponse;
           
           if (data.success) {
             toast.success("Removed from cart");

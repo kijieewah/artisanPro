@@ -4,6 +4,41 @@ import { prisma } from "~/lib/db";
 import { redirect } from "next/navigation";
 import OrdersClient from "./page.client";
 
+// Define types with optional fields
+interface EnhancedOrderItem {
+  id: string;
+  itemType: string;
+  itemId: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  orderId: string;
+  metadata: any;
+  details: any;
+}
+
+interface EnhancedOrder {
+  id: string;
+  orderNumber: string;
+  artisanId: string;
+  cartId: string | null;  // Make it optional/nullable
+  subtotal: number;
+  tax: number;
+  total: number;
+  status: string;
+  paymentMethod: string | null;
+  paymentId: string | null;
+  paymentReference: string | null;
+  invoiceNumber: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: Date;
+  orderItems: EnhancedOrderItem[];
+  invoice: any;
+  receipt: any;
+  paymentTransaction: any;
+}
+
 export default async function OrdersPage() {
   const user = await getCurrentUser();
 
@@ -40,7 +75,7 @@ export default async function OrdersPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // Enhance orders with item details
+  // Enhance orders with item details and convert Decimal to number
   const enhancedOrders = await Promise.all(
     orders.map(async (order) => {
       const enhancedItems = await Promise.all(
@@ -106,10 +141,17 @@ export default async function OrdersPage() {
             }
           }
           
-          return { ...item, details };
+          // Convert Decimal to number
+          return {
+            ...item,
+            unitPrice: Number(item.unitPrice),
+            totalPrice: Number(item.totalPrice),
+            details,
+          };
         })
       );
 
+      // Convert Decimal to number for order totals
       return {
         ...order,
         orderItems: enhancedItems,
@@ -126,10 +168,10 @@ export default async function OrdersPage() {
     id: fullUser.id,
     email: fullUser.email,
     phone: fullUser.phone || "",
-    firstName: fullUser.firstName,
-    lastName: fullUser.lastName,
+    firstName: fullUser.firstName || "",
+    lastName: fullUser.lastName || "",
     role: fullUser.role,
-    name: `${fullUser.firstName} ${fullUser.lastName}`,
+    name: `${fullUser.firstName || ""} ${fullUser.lastName || ""}`.trim(),
   };
 
   return <OrdersClient user={userData} orders={enhancedOrders} />;

@@ -58,6 +58,17 @@ interface NavItem {
   badgeColor?: string;
 }
 
+// Define response type
+interface CartResponse {
+  success: boolean;
+  cart?: {
+    itemCount: number;
+    items?: any[];
+    total?: number;
+  };
+  error?: string;
+}
+
 export default function Sidebar({
   isMobileMenuOpen,
   toggleMobileMenu,
@@ -71,7 +82,7 @@ export default function Sidebar({
   const fetchCartCount = async () => {
     try {
       const response = await fetch("/api/artisan/cart");
-      const data = await response.json();
+      const data = (await response.json()) as CartResponse;
       if (data.success) {
         setCartItemCount(data.cart?.itemCount || 0);
       }
@@ -136,16 +147,6 @@ export default function Sidebar({
 
   // Certification Section - Your own certification journey
   const certificationNavItems: NavItem[] = [
-    // {
-    //   href: "/dashboard/profile",
-    //   icon: UserCheck,
-    //   label: "My Profile",
-    // },
-    // {
-    //   href: "/dashboard/services",
-    //   icon: Briefcase,
-    //   label: "My Services",
-    // },
     {
       href: "/dashboard/requirements",
       icon: FileCheck,
@@ -176,20 +177,6 @@ export default function Sidebar({
       label: "Certification Partners",
     },
   ];
-
-  // Business Section
-  // const businessNavItems: NavItem[] = [
-  //   {
-  //     href: "/dashboard/payments",
-  //     icon: CreditCard,
-  //     label: "Payments",
-  //   },
-  //   {
-  //     href: "/dashboard/subscription",
-  //     icon: LineChart,
-  //     label: "Subscription",
-  //   },
-  // ];
 
   // Support Section
   const supportNavItems: NavItem[] = [
@@ -359,9 +346,6 @@ export default function Sidebar({
               <NavLink key={item.label} item={item} />
             ))}
           </div>
-
-          {/* Business Section */}
-          
 
           {/* Support Section */}
           <div className="mb-6">
