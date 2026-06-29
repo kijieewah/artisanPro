@@ -31,11 +31,17 @@ function isValidIndustryServiceSelection(data: unknown): data is IndustryService
 // Helper to safely parse JSON
 function safeParseJSON<T>(jsonString: string, fallback: T): T {
   try {
-    return JSON.parse(jsonString);
+    const parsed = JSON.parse(jsonString);
+    return parsed as T;
   } catch (error) {
     console.error("JSON Parse Error:", error);
     return fallback;
   }
+}
+
+// Helper to check if value is a File
+function isFile(value: unknown): value is File {
+  return typeof File !== 'undefined' && value instanceof File;
 }
 
 // GET handler for testing
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
     // Log form data keys for debugging
     const formKeys: string[] = [];
     for (const [key, value] of formData.entries()) {
-      if (value instanceof File) {
+      if (isFile(value)) {
         formKeys.push(`${key}: File(${value.name}, ${value.size}bytes)`);
       } else {
         formKeys.push(`${key}: ${String(value).substring(0, 50)}`);
@@ -114,7 +120,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Validate file
-    if (!accreditationDoc || !(accreditationDoc instanceof File)) {
+    if (!accreditationDoc || !isFile(accreditationDoc)) {
       return NextResponse.json(
         { error: "Accreditation document is required" },
         { status: 400 }
@@ -133,7 +139,7 @@ export async function POST(request: NextRequest) {
     let selectedIndustriesWithServices: IndustryServiceSelection[] = [];
     
     if (industriesJson) {
-      const parsed = safeParseJSON(industriesJson, null);
+      const parsed = safeParseJSON<unknown>(industriesJson, null);
       if (Array.isArray(parsed)) {
         selectedIndustriesWithServices = parsed.filter(isValidIndustryServiceSelection);
         console.log(`Parsed ${selectedIndustriesWithServices.length} industry selections`);
@@ -153,12 +159,12 @@ export async function POST(request: NextRequest) {
     
     console.log(`Processing ${selectedIndustryIds.length} industries, ${allSelectedServiceIds.length} services`);
     
-    // Upload files - Using your existing uploadImage function that expects File
+    // Upload files
     let accreditationDocUrl = "";
     let logoUrl = "";
     
     try {
-      // Upload accreditation - Pass the File object directly
+      // Upload accreditation
       console.log("Uploading accreditation document...");
       const accreditationResult = await uploadImage(accreditationDoc, "partners/accreditation");
       
@@ -170,7 +176,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Upload logo if provided
-      if (logo && logo instanceof File && logo.size > 0) {
+      if (logo && isFile(logo) && logo.size > 0) {
         console.log("Uploading logo...");
         const logoResult = await uploadImage(logo, "partners/logos");
         
@@ -331,8 +337,6 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Partner application submitted successfully",
       partnerId: partnerId,
-      // Remove in production
-      tempPassword: tempPassword,
     });
     
   } catch (error) {

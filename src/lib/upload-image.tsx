@@ -6,7 +6,6 @@ import cloudinary from "./claudinary";
 export type CloudinaryUploadResult = {
   secure_url: string;
   public_id: string;
-  // Add other properties you might need from the result
 };
 
 export const uploadImage = async (
@@ -16,20 +15,18 @@ export const uploadImage = async (
   const buffer = await file.arrayBuffer();
   const bytes = Buffer.from(buffer);
 
-  // Explicitly define the type for the Promise resolution
   return new Promise<CloudinaryUploadResult>((resolve, reject) => {
     cloudinary.uploader
       .upload_stream(
         {
           resource_type: "auto",
           folder: folder,
-          // Use more aggressive transformation to aim for <1MB
           transformation: [
             {
-              width: 800, // Reduced max width to 800px
+              width: 800,
               crop: "limit",
-              quality: "auto:eco", // Use 'auto:eco' for higher compression
-              fetch_format: "auto", // Automatically use the best format (e.g., WebP)
+              quality: "auto:eco",
+              fetch_format: "auto",
             },
           ],
         },
@@ -38,12 +35,10 @@ export const uploadImage = async (
             return reject(error.message);
           }
 
-          // Ensure result is not null before resolving.
           if (!result) {
             return reject("Cloudinary upload failed with no result.");
           }
 
-          // Resolve with the expected object
           resolve({
             secure_url: result.secure_url,
             public_id: result.public_id,
@@ -54,7 +49,7 @@ export const uploadImage = async (
   });
 };
 
-// Optional: Buffer upload wrapper for flexibility
+// Buffer upload wrapper for flexibility
 export const uploadImageFromBuffer = async (
   buffer: Buffer,
   folder: string,
