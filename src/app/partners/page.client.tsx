@@ -25,6 +25,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import Image from "next/image";
 
 // Brand Colors
 const colors = {
@@ -567,64 +568,64 @@ const handleSubmit = async (e: React.FormEvent) => {
       `}</style>
 
       {/* Header */}
-      <header className={`fixed top-0 w-full z-50 transition-all duration-300 bg-white ${scrolled ? "shadow-md py-3" : "py-4"}`}>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center shadow-md" style={{ backgroundColor: colors.primary }}>
-                <HardHat className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <span className="text-xl font-bold" style={{ color: colors.primary }}>ArtisanPro</span>
-                <span className="text-xs text-gray-500 block -mt-1">NG</span>
-              </div>
-            </Link>
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/" className="text-gray-600 hover:text-[#16507b] transition-colors">Home</Link>
-              <Link href="/partners" className="text-[#16507b] font-semibold transition-colors">Partners</Link>
-              <Link href="/#services" className="text-gray-600 hover:text-[#16507b] transition-colors">Services</Link>
-              <Link href="/#faq" className="text-gray-600 hover:text-[#16507b] transition-colors">FAQ</Link>
-              <Link href="/#contact" className="text-gray-600 hover:text-[#16507b] transition-colors">Contact</Link>
-            </nav>
-            <div className="hidden md:flex items-center space-x-3">
-              <Link href="/auth/signin" className="px-4 py-2 rounded-full font-semibold transition-all" style={{ border: `2px solid ${colors.primary}`, color: colors.primary }}>
-                Sign In
-              </Link>
-              <Link href="/auth/signup" className="px-5 py-2 rounded-full font-semibold transition-all shadow-md hover:shadow-lg text-white" style={{ backgroundColor: colors.primary }}>
-                Get Started
-              </Link>
-            </div>
-            <button className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
-          {mobileMenuOpen && (
-            <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg border-t border-gray-100 py-4 px-4">
-              <div className="flex flex-col space-y-3">
-                <Link href="/" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>Home</Link>
-                <Link href="/partners" className="py-2 text-[#16507b] font-semibold" onClick={() => setMobileMenuOpen(false)}>Partners</Link>
-                <Link href="/#services" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>Services</Link>
-                <Link href="/#faq" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>FAQ</Link>
-                <Link href="/#contact" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>Contact</Link>
-                <div className="pt-3 border-t border-gray-100 flex flex-col space-y-2">
-                  <Link href="/auth/signin" className="text-center py-2 rounded-full border-2" style={{ borderColor: colors.primary, color: colors.primary }} onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
-                  <Link href="/auth/signup" className="text-center text-white py-2 rounded-full" style={{ backgroundColor: colors.primary }} onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
-                </div>
-              </div>
-            </div>
-          )}
+     <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-white shadow-md py-3" : "bg-white py-4"}`}>
+  <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-between">
+      <Link href="/" className="flex items-center">
+        <div className="relative h-12 w-auto flex-shrink-0">
+          <Image
+            src="/uploads/artisanPro.png"
+            alt="ArtisanPro Logo"
+            width={120}
+            height={48}
+            className="object-contain"
+            priority
+          />
         </div>
-      </header>
+      </Link>
+
+      <nav className="hidden md:flex items-center space-x-6">
+        <Link href="#features" className="text-gray-600 hover:text-[#16507b] transition-colors">Features</Link>
+        <Link href="#how-it-works" className="text-gray-600 hover:text-[#16507b] transition-colors">How It Works</Link>
+        <Link href="#trades" className="text-gray-600 hover:text-[#16507b] transition-colors">Trades</Link>
+        <Link href="partners" className="text-gray-600 hover:text-[#16507b] transition-colors">Partners</Link>
+        <Link href="#testimonials" className="text-gray-600 hover:text-[#16507b] transition-colors">Success Stories</Link>
+      </nav>
+
+      <div className="hidden md:flex items-center space-x-3">
+        <Link href="/auth/sign-in" className="px-4 py-2 rounded-full font-semibold transition-all" style={{ border: `2px solid ${colors.primary}`, color: colors.primary }}>Sign In</Link>
+        <Link href="/auth/sign-up" className="px-5 py-2 rounded-full font-semibold transition-all shadow-md hover:shadow-lg text-white" style={{ backgroundColor: colors.primary }}>Get Started</Link>
+      </div>
+
+      <button className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+        {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </button>
+    </div>
+
+    {mobileMenuOpen && (
+      <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg border-t border-gray-100 py-4 px-4">
+        <div className="flex flex-col space-y-3">
+          <Link href="#features" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>Features</Link>
+          <Link href="#how-it-works" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>How It Works</Link>
+          <Link href="#trades" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>Trades</Link>
+          <Link href="#partners" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>Partners</Link>
+          <Link href="#testimonials" className="py-2 text-gray-600" onClick={() => setMobileMenuOpen(false)}>Success Stories</Link>
+          <div className="pt-3 border-t border-gray-100 flex flex-col space-y-2">
+            <Link href="/auth/signin" className="text-center py-2 rounded-full border-2" style={{ borderColor: colors.primary, color: colors.primary }} onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+            <Link href="/auth/signup" className="text-center text-white py-2 rounded-full" style={{ backgroundColor: colors.primary }} onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+</header>
 
       <main>
         {/* Hero Section */}
         <section className="pt-32 pb-16 text-center" style={{ backgroundColor: colors.light }}>
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6" style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}>
-                <Sparkles className="h-4 w-4" />
-                <span className="text-sm font-medium">Partner With Us</span>
-              </div>
+             
               <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{ color: colors.primary }}>Partner with ArtisanPro</h1>
               <p className="text-lg text-gray-600 mb-4">Building Nigeria's most trusted ecosystem for skilled artisans.</p>
               <p className="text-gray-500">ArtisanPro works with training institutions, certification organizations, licensing bodies, and regulatory authorities to build a trusted marketplace for skilled artisans.</p>
@@ -887,39 +888,107 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Organization Name *</label>
-                        <input type="text" name="businessName" value={formData.businessName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="text" 
+                          name="businessName" 
+                          value={formData.businessName} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="Enter your organization's full legal name"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Registration Number *</label>
-                        <input type="text" name="registrationNumber" value={formData.registrationNumber} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="text" 
+                          name="registrationNumber" 
+                          value={formData.registrationNumber} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="e.g., RC 1234567"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Tax ID</label>
-                        <input type="text" name="taxId" value={formData.taxId} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" />
+                        <input 
+                          type="text" 
+                          name="taxId" 
+                          value={formData.taxId} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="Enter your tax identification number (optional)"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Business Email *</label>
-                        <input type="email" name="businessEmail" value={formData.businessEmail} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="email" 
+                          name="businessEmail" 
+                          value={formData.businessEmail} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="contact@yourorganization.com"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Business Phone *</label>
-                        <input type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="tel" 
+                          name="businessPhone" 
+                          value={formData.businessPhone} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="+234 800 000 0000"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Website</label>
-                        <input type="url" name="website" value={formData.website} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" />
+                        <input 
+                          type="url" 
+                          name="website" 
+                          value={formData.website} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="https://www.yourwebsite.com (optional)"
+                        />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Street Address *</label>
-                        <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="text" 
+                          name="address" 
+                          value={formData.address} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="Enter your physical business address"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>City *</label>
-                        <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="text" 
+                          name="city" 
+                          value={formData.city} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="e.g., Lagos"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>State *</label>
-                        <select name="state" value={formData.state} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required>
+                        <select 
+                          name="state" 
+                          value={formData.state} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          required
+                        >
                           <option value="">Select State</option>
                           {loadingStates ? (
                             <option disabled>Loading states...</option>
@@ -932,23 +1001,49 @@ const handleSubmit = async (e: React.FormEvent) => {
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Organization Description</label>
-                        <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" placeholder="Tell us about your organization, mission, and how you'd like to partner with ArtisanPro" />
+                        <textarea 
+                          name="description" 
+                          value={formData.description} 
+                          onChange={handleInputChange} 
+                          rows={3} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="Tell us about your organization, mission, and how you'd like to partner with ArtisanPro (optional)"
+                        />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Partner Type *</label>
-                        <select name="partnerType" value={formData.partnerType} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required>
-                          {PARTNER_TYPES.map(type => (<option key={type.value} value={type.value}>{type.label}</option>))}
+                        <select 
+                          name="partnerType" 
+                          value={formData.partnerType} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          required
+                        >
+                          {PARTNER_TYPES.map(type => (
+                            <option key={type.value} value={type.value}>{type.label}</option>
+                          ))}
                         </select>
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Accreditation Document *</label>
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'accreditation')} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" required />
+                        <input 
+                          type="file" 
+                          accept=".pdf,.jpg,.jpeg,.png" 
+                          onChange={(e) => handleFileChange(e, 'accreditation')} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" 
+                          required 
+                        />
                         <p className="text-xs text-gray-500 mt-1">Upload PDF, JPG, or PNG (max 5MB)</p>
                         {accreditationDoc && <p className="text-xs text-green-600 mt-1">✓ {accreditationDoc.name}</p>}
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Organization Logo</label>
-                        <input type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFileChange(e, 'logo')} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" />
+                        <input 
+                          type="file" 
+                          accept=".jpg,.jpeg,.png" 
+                          onChange={(e) => handleFileChange(e, 'logo')} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b] file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold" 
+                        />
                         <p className="text-xs text-gray-500 mt-1">Recommended: 500x500px, PNG or JPG (max 2MB)</p>
                         {logo && <p className="text-xs text-green-600 mt-1">✓ {logo.name}</p>}
                       </div>
@@ -967,19 +1062,51 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Full Name *</label>
-                        <input type="text" name="contactName" value={formData.contactName} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="text" 
+                          name="contactName" 
+                          value={formData.contactName} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="e.g., John Doe"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Position *</label>
-                        <input type="text" name="contactPosition" value={formData.contactPosition} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="text" 
+                          name="contactPosition" 
+                          value={formData.contactPosition} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="e.g., Partnership Manager"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Email *</label>
-                        <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="email" 
+                          name="contactEmail" 
+                          value={formData.contactEmail} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="john@yourorganization.com"
+                          required 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Phone *</label>
-                        <input type="tel" name="contactPhone" value={formData.contactPhone} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" required />
+                        <input 
+                          type="tel" 
+                          name="contactPhone" 
+                          value={formData.contactPhone} 
+                          onChange={handleInputChange} 
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]" 
+                          placeholder="+234 800 000 0000"
+                          required 
+                        />
                       </div>
                     </div>
                   </div>
@@ -1005,7 +1132,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             onChange={(e) => setCurrentIndustryId(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16507b]"
                           >
-                            <option value="">Select industry</option>
+                            <option value="">Select an industry</option>
                             {availableIndustries.map((industry) => (
                               <option key={industry.id} value={industry.id.toString()}>{industry.name}</option>
                             ))}
